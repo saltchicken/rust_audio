@@ -8,13 +8,20 @@ input_device = "default"
 output_device = "default"
 
 [delay]
-active_preset = "slapback"
+active_preset = "epic"
 
 # Fallback/Default config if the active preset isn't found
 left_delay_ms = 400.0
 right_delay_ms = 530.0
 feedback = 0.65
 mix = 0.5
+
+[delay.presets.epic]
+left_delay_ms = 400.0
+right_delay_ms = 530.0
+feedback = 0.65
+mix = 0.5
+
 
 [delay.presets.slapback]
 left_delay_ms = 120.0

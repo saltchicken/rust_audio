@@ -5,6 +5,8 @@ use std::fs;
 use std::time::Duration;
 
 use clack_host::prelude::*;
+use crossterm::event::{poll, read, Event, KeyCode, KeyModifiers};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct MixerConfig {
@@ -47,7 +49,15 @@ impl HostHandlers for MixerHost {
     type AudioProcessor<'a> = ();
 }
 
-fn main() -> anyhow::Result<()> {
+// Ensure the terminal returns to normal even if the program panics
+struct RawModeGuard;
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        let _ = disable_raw_mode();
+    }
+}
+
+fn run_engine() -> anyhow::Result<bool> {
     let config_path = "config.toml";
     let app_config = load_or_create_config(config_path)?;
     let host = cpal::default_host();
@@ -70,8 +80,9 @@ fn main() -> anyhow::Result<()> {
             .unwrap_or_else(|| panic!("Output device '{}' not found.", app_config.output_device))
     };
 
-    println!("✅ Bound to Input:  {}", input_device.name()?);
-    println!("✅ Bound to Output: {}", output_device.name()?);
+    // Note: We use \r\n here because raw terminal mode disables automatic carriage returns
+    println!("✅ Bound to Input:  {}\r", input_device.name()?);
+    println!("✅ Bound to Output: {}\r", output_device.name()?);
 
     let supported_input_config = input_device.default_input_config()?;
     let mut input_stream_config: cpal::StreamConfig = supported_input_config.clone().into();
@@ -113,7 +124,7 @@ fn main() -> anyhow::Result<()> {
     let mut _plugin_instances = Vec::new();
 
     for plugin_path in &app_config.plugin_chain {
-        println!("✅ Loading CLAP from: {}", plugin_path);
+        println!("✅ Loading CLAP from: {}\r", plugin_path);
         let entry = unsafe { PluginEntry::load(plugin_path) }?;
         let factory = entry.get_plugin_factory().expect("No plugin factory found");
         let descriptor = factory.plugin_descriptors().next().expect("No plugins found in CLAP");
@@ -131,7 +142,7 @@ fn main() -> anyhow::Result<()> {
         audio_processors.push(audio_processor);
     }
 
-    let err_fn = |err| eprintln!("Stream error: {}", err);
+    let err_fn = |err| eprintln!("Stream error: {}\r", err);
 
     let input_stream = input_device.build_input_stream(
         &input_stream_config,
@@ -162,14 +173,12 @@ fn main() -> anyhow::Result<()> {
             let read = consumer.pop_slice(&mut interleaved_in[..samples_to_read]);
             interleaved_in[read..samples_to_read].fill(0.0);
 
-            // De-interleave raw hardware input into Buffer 0
             for frame in 0..frames {
                 for ch in 0..channels {
                     intermediate_buffers[0][ch][frame] = interleaved_in[frame * channels + ch];
                 }
             }
 
-            // If no plugins are loaded, just pass through Buffer 0
             if audio_processors.is_empty() {
                 for frame in 0..frames {
                     for ch in 0..channels {
@@ -182,7 +191,6 @@ fn main() -> anyhow::Result<()> {
             let mut current_in_buf = 0;
 
             for audio_processor in audio_processors.iter_mut() {
-                // Split the array borrow to yield distinct, mutable references for input and output
                 let [ref mut buf_0, ref mut buf_1] = intermediate_buffers;
                 let (in_buf, out_buf) = if current_in_buf == 0 {
                     (buf_0, buf_1)
@@ -190,7 +198,6 @@ fn main() -> anyhow::Result<()> {
                     (buf_1, buf_0)
                 };
 
-                // Use iter_mut() and &mut for both due to the clack-host API enforcing AsMut
                 let clap_input = input_ports.with_input_buffers([AudioPortBuffer {
                     latency: 0,
                     channels: AudioPortBufferType::f32_input_only(
@@ -217,11 +224,9 @@ fn main() -> anyhow::Result<()> {
                     None,
                 );
 
-                // Swap buffers for the next iteration (0 becomes 1, 1 becomes 0)
                 current_in_buf = 1 - current_in_buf;
             }
 
-            // Interleave final processed buffer back to the hardware output stream
             let final_buf = current_in_buf;
             for frame in 0..frames {
                 for ch in 0..channels {
@@ -233,11 +238,55 @@ fn main() -> anyhow::Result<()> {
         None,
     )?;
 
-    println!("\nStreaming live at {}Hz with multiple CLAP plugins! (Press Ctrl+C to stop)", input_stream_config.sample_rate.0);
+    println!("\r\n🚀 Streaming live at {}Hz! \r", input_stream_config.sample_rate.0);
+    println!("👉 Press 'r' to hot-reload config, 'q' or Esc to quit.\r");
+    
     input_stream.play()?;
     output_stream.play()?;
 
+    // Application hotkey loop
     loop {
-        std::thread::sleep(Duration::from_secs(1));
+        // Poll for event non-blocking (timeout 50ms)
+        if poll(Duration::from_millis(50))? {
+            if let Event::Key(event) = read()? {
+                match event.code {
+                    // Trigger a reload
+                    KeyCode::Char('r') | KeyCode::Char('R') => {
+                        println!("\r\n🔄 Reloading audio engine and config...\r");
+                        return Ok(true);
+                    }
+                    // Quit application
+                    KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
+                        println!("\r\n🛑 Shutting down...\r");
+                        return Ok(false);
+                    }
+                    // Support standard Ctrl+C for quitting
+                    KeyCode::Char('c') if event.modifiers.contains(KeyModifiers::CONTROL) => {
+                        println!("\r\n🛑 Shutting down...\r");
+                        return Ok(false);
+                    }
+                    _ => {}
+                }
+            }
+        }
     }
+}
+
+fn main() -> anyhow::Result<()> {
+    // Put the terminal into raw mode so we can read unbuffered keystrokes
+    enable_raw_mode()?;
+    let _guard = RawModeGuard; // Ensures we exit raw mode cleanly
+
+    loop {
+        match run_engine() {
+            Ok(true) => continue, // User pressed 'r', loop back and rebuild!
+            Ok(false) => break,   // User pressed 'q'
+            Err(e) => {
+                eprintln!("\r\n❌ Engine error: {:?}\r", e);
+                break;
+            }
+        }
+    }
+
+    Ok(())
 }
