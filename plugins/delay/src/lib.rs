@@ -1,4 +1,32 @@
 use clack_plugin::prelude::*;
+use serde::Deserialize;
+use std::fs;
+
+// --- Configuration Structs ---
+
+#[derive(Deserialize)]
+struct RootConfig {
+    delay: Option<DelayConfig>,
+}
+
+#[derive(Deserialize)]
+struct DelayConfig {
+    left_delay_ms: f64,
+    right_delay_ms: f64,
+    feedback: f32,
+    mix: f32,
+}
+
+impl Default for DelayConfig {
+    fn default() -> Self {
+        Self {
+            left_delay_ms: 400.0,
+            right_delay_ms: 530.0,
+            feedback: 0.65,
+            mix: 0.5,
+        }
+    }
+}
 
 // --- 1. DSP Utilities ---
 
@@ -10,29 +38,21 @@ struct EchoDelay {
 }
 
 impl EchoDelay {
-    fn new(sample_rate: f64, delay_ms: f64) -> Self {
-        // Calculate how many samples long our delay needs to be
+    fn new(sample_rate: f64, delay_ms: f64, feedback: f32, mix: f32) -> Self {
         let delay_samples = ((delay_ms / 1000.0) * sample_rate) as usize;
         
         Self {
             buffer: vec![0.0; delay_samples.max(1)],
             index: 0,
-            feedback: 0.65, // 65% feedback for a long, obvious trail
-            mix: 0.5,       // 50/50 Wet/Dry mix
+            feedback,
+            mix,
         }
     }
 
     fn process(&mut self, input: f32) -> f32 {
-        // Read the delayed sample from the buffer
         let delayed = self.buffer[self.index];
-        
-        // Write the new input mixed with the feedback back into the buffer
         self.buffer[self.index] = input + (delayed * self.feedback);
-        
-        // Advance the circular buffer index
         self.index = (self.index + 1) % self.buffer.len();
-
-        // Return the mixed signal
         (input * (1.0 - self.mix)) + (delayed * self.mix)
     }
 }
@@ -51,7 +71,7 @@ impl DefaultPluginFactory for MyDelayPlugin {
     fn get_descriptor() -> PluginDescriptor {
         PluginDescriptor::new(
             "com.example.rust-mixer-delay", 
-            "Rust Mixer Obvious Delay"
+            "Rust Mixer Configurable Delay"
         )
     }
 
@@ -80,11 +100,16 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         
-        // Create 2 independent delays for stereo
-        // 400ms on the Left, 530ms on the Right for a wide, bouncing echo
+        // Read root config and extract the [delay] section
+        let config = fs::read_to_string("config.toml")
+            .ok()
+            .and_then(|c| toml::from_str::<RootConfig>(&c).ok())
+            .and_then(|root| root.delay)
+            .unwrap_or_default();
+        
         let channels = vec![
-            EchoDelay::new(sr, 400.0), // Left
-            EchoDelay::new(sr, 530.0), // Right
+            EchoDelay::new(sr, config.left_delay_ms, config.feedback, config.mix),
+            EchoDelay::new(sr, config.right_delay_ms, config.feedback, config.mix),
         ];
         
         Ok(Self { channels })
@@ -100,7 +125,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
             let Some(channel_pairs) = port_pair.channels()?.into_f32() else { continue; };
             
             for (ch_idx, channel_pair) in channel_pairs.into_iter().enumerate() {
-                // Route to left or right delay processor
                 let delay = if ch_idx < self.channels.len() {
                     &mut self.channels[ch_idx]
                 } else {

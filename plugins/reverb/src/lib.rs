@@ -1,4 +1,42 @@
 use clack_plugin::prelude::*;
+use serde::Deserialize;
+use std::fs;
+
+// --- Configuration Structs ---
+
+#[derive(Deserialize)]
+struct RootConfig {
+    reverb: Option<ReverbConfig>,
+}
+
+#[derive(Deserialize)]
+struct ReverbConfig {
+    comb_lengths: [f64; 4],
+    allpass_lengths: [f64; 2],
+    comb_feedback: f32,
+    comb_dampening: f32,
+    allpass_feedback: f32,
+    left_spread: usize,
+    right_spread: usize,
+    mix: f32,
+    wet_scale: f32,
+}
+
+impl Default for ReverbConfig {
+    fn default() -> Self {
+        Self {
+            comb_lengths: [1557.0, 1617.0, 1491.0, 1422.0],
+            allpass_lengths: [225.0, 556.0],
+            comb_feedback: 0.84,
+            comb_dampening: 0.2,
+            allpass_feedback: 0.5,
+            left_spread: 0,
+            right_spread: 23,
+            mix: 0.4,
+            wet_scale: 0.15,
+        }
+    }
+}
 
 // --- 1. DSP Utilities ---
 
@@ -25,7 +63,6 @@ impl DelayLine {
     }
 }
 
-// Comb filter: Delay with feedback and a low-pass filter for dampening
 struct CombFilter {
     delay: DelayLine,
     feedback: f32,
@@ -34,11 +71,11 @@ struct CombFilter {
 }
 
 impl CombFilter {
-    fn new(len: usize) -> Self {
+    fn new(len: usize, feedback: f32, dampening: f32) -> Self {
         Self {
             delay: DelayLine::new(len),
-            feedback: 0.84, // High feedback for long tails
-            dampening: 0.2, // Dampens high frequencies over time
+            feedback,
+            dampening,
             filter_store: 0.0,
         }
     }
@@ -51,17 +88,16 @@ impl CombFilter {
     }
 }
 
-// All-pass filter: Modifies phase to "smear" the echoes and increase density
 struct AllPassFilter {
     delay: DelayLine,
     feedback: f32,
 }
 
 impl AllPassFilter {
-    fn new(len: usize) -> Self {
+    fn new(len: usize, feedback: f32) -> Self {
         Self {
             delay: DelayLine::new(len),
-            feedback: 0.5,
+            feedback,
         }
     }
     
@@ -79,48 +115,49 @@ struct ReverbChannel {
     combs: [CombFilter; 4],
     allpasses: [AllPassFilter; 2],
     mix: f32,
+    wet_scale: f32,
 }
 
 impl ReverbChannel {
-    fn new(sample_rate: f64, stereo_spread: usize) -> Self {
+    fn new(sample_rate: f64, stereo_spread: usize, config: &ReverbConfig) -> Self {
         let sr_scale = sample_rate / 44100.0;
         
-        // Prime-ish delay lengths (scaled to sample rate) + stereo spread to widen the image
-        let c1 = (1557.0 * sr_scale) as usize + stereo_spread;
-        let c2 = (1617.0 * sr_scale) as usize + stereo_spread;
-        let c3 = (1491.0 * sr_scale) as usize + stereo_spread;
-        let c4 = (1422.0 * sr_scale) as usize + stereo_spread;
+        let c1 = (config.comb_lengths[0] * sr_scale) as usize + stereo_spread;
+        let c2 = (config.comb_lengths[1] * sr_scale) as usize + stereo_spread;
+        let c3 = (config.comb_lengths[2] * sr_scale) as usize + stereo_spread;
+        let c4 = (config.comb_lengths[3] * sr_scale) as usize + stereo_spread;
 
-        let a1 = (225.0 * sr_scale) as usize + stereo_spread;
-        let a2 = (556.0 * sr_scale) as usize + stereo_spread;
+        let a1 = (config.allpass_lengths[0] * sr_scale) as usize + stereo_spread;
+        let a2 = (config.allpass_lengths[1] * sr_scale) as usize + stereo_spread;
 
         Self {
             combs: [
-                CombFilter::new(c1), CombFilter::new(c2),
-                CombFilter::new(c3), CombFilter::new(c4),
+                CombFilter::new(c1, config.comb_feedback, config.comb_dampening),
+                CombFilter::new(c2, config.comb_feedback, config.comb_dampening),
+                CombFilter::new(c3, config.comb_feedback, config.comb_dampening),
+                CombFilter::new(c4, config.comb_feedback, config.comb_dampening),
             ],
             allpasses: [
-                AllPassFilter::new(a1), AllPassFilter::new(a2),
+                AllPassFilter::new(a1, config.allpass_feedback),
+                AllPassFilter::new(a2, config.allpass_feedback),
             ],
-            mix: 0.4, // Wet/Dry mix
+            mix: config.mix,
+            wet_scale: config.wet_scale,
         }
     }
 
     fn process(&mut self, input: f32) -> f32 {
         let mut out = 0.0;
         
-        // 1. Run combs in parallel
         for comb in &mut self.combs {
             out += comb.process(input);
         }
         
-        // 2. Run all-passes in series
         for allpass in &mut self.allpasses {
             out = allpass.process(out);
         }
         
-        // 3. Output Wet/Dry mix (Scale wet signal down slightly to prevent clipping)
-        (input * (1.0 - self.mix)) + (out * self.mix * 0.15)
+        (input * (1.0 - self.mix)) + (out * self.mix * self.wet_scale)
     }
 }
 
@@ -138,7 +175,7 @@ impl DefaultPluginFactory for MyReverbPlugin {
     fn get_descriptor() -> PluginDescriptor {
         PluginDescriptor::new(
             "com.example.rust-mixer-reverb", 
-            "Rust Mixer Reverb Effect"
+            "Rust Mixer Configurable Reverb"
         )
     }
 
@@ -167,11 +204,16 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         
-        // Create 2 independent reverb networks for stereo. 
-        // We add a "spread" value to the right channel so the echoes decorrelate, sounding much wider.
+        // Read root config and extract the [reverb] section
+        let config = fs::read_to_string("config.toml")
+            .ok()
+            .and_then(|c| toml::from_str::<RootConfig>(&c).ok())
+            .and_then(|root| root.reverb)
+            .unwrap_or_default();
+        
         let channels = vec![
-            ReverbChannel::new(sr, 0),  // Left
-            ReverbChannel::new(sr, 23), // Right (offsets all delay lines by 23 samples)
+            ReverbChannel::new(sr, config.left_spread, &config),
+            ReverbChannel::new(sr, config.right_spread, &config),
         ];
         
         Ok(Self { channels })
@@ -187,7 +229,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
             let Some(channel_pairs) = port_pair.channels()?.into_f32() else { continue; };
             
             for (ch_idx, channel_pair) in channel_pairs.into_iter().enumerate() {
-                // Pick the correct reverb state for Left or Right channel
                 let reverb = if ch_idx < self.channels.len() {
                     &mut self.channels[ch_idx]
                 } else {

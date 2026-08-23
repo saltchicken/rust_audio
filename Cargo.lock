@@ -255,6 +255,8 @@ name = "delay_clap_plugin"
 version = "0.1.0"
 dependencies = [
  "clack-plugin",
+ "serde",
+ "toml",
 ]
 
 [[package]]
@@ -730,6 +732,8 @@ name = "reverb_test_plugin"
 version = "0.1.0"
 dependencies = [
  "clack-plugin",
+ "serde",
+ "toml",
 ]
 
 [[package]]
