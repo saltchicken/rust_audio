@@ -60,6 +60,7 @@ struct Voice {
     velocity: f32,
     active_note: Option<i16>,
     env: MicroEnvelope,
+    pitch_gain: f32,
 }
 
 impl Voice {
@@ -70,6 +71,7 @@ impl Voice {
             velocity: 0.0,
             active_note: None,
             env: MicroEnvelope::new(sample_rate),
+            pitch_gain: 1.0,
         }
     }
 
@@ -78,6 +80,11 @@ impl Voice {
         self.freq = 440.0 * 2.0_f32.powf((note as f32 - 69.0) / 12.0);
         self.velocity = velocity;
         self.env.trigger();
+        
+        // A4 (440Hz) is our 1.0x volume baseline.
+        // Lower notes will calculate > 1.0, higher notes will calculate < 1.0.
+        // We clamp it between 0.4 and 3.0 so it doesn't get completely out of control.
+        self.pitch_gain = (440.0 / self.freq).sqrt().clamp(0.4, 3.0);
     }
 
     fn release(&mut self) {
@@ -95,8 +102,8 @@ impl Voice {
         let inc = self.freq / sample_rate;
         self.phase = (self.phase + inc).fract();
 
-        // Generate pure sine wave, scale by velocity and envelope
-        (self.phase * 2.0 * PI).sin() * self.velocity * self.env.process()
+        // Generate pure sine wave, scale by velocity, envelope, and pitch compensation gain
+        (self.phase * 2.0 * PI).sin() * self.velocity * self.env.process() * self.pitch_gain
     }
 }
 
