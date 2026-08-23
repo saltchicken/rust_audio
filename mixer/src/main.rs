@@ -20,9 +20,7 @@ impl Default for MixerConfig {
         Self {
             latency_ms: 2.0,
             capacity_seconds: 0.5,
-            plugin_chain: vec![
-                "target/release/libexample_clap_plugin.so".to_string(),
-            ],
+            plugin_chain: vec![],
             input_device: "default".to_string(),
             output_device: "default".to_string(),
         }

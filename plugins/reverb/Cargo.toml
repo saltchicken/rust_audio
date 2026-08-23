@@ -1,5 +1,5 @@
 [package]
-name = "example_clap_plugin"
+name = "reverb_test_plugin"
 version = "0.1.0"
 edition = "2021"
 

@@ -2,7 +2,7 @@ latency_ms = 2.0
 capacity_seconds = 1.0
 plugin_chain = [
   "target/release/libdelay_clap_plugin.so",
-  "target/release/libexample_clap_plugin.so"
+  "target/release/libreverb_test_plugin.so"
 ]
 input_device = "default"
 output_device = "default"
