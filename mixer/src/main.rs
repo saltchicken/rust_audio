@@ -72,6 +72,52 @@ enum MidiMsg {
     NoteOff(u8),
 }
 
+fn rotate_preset(forward: bool) -> anyhow::Result<()> {
+    let config_path = "config.toml";
+    let config_str = fs::read_to_string(config_path)?;
+    
+    // Parse as an untyped toml Value so we can dynamically inspect [global_presets]
+    let parsed: toml::Value = toml::from_str(&config_str)?;
+
+    if let Some(presets) = parsed.get("global_presets").and_then(|v| v.as_table()) {
+        let mut preset_names: Vec<String> = presets.keys().cloned().collect();
+        preset_names.sort();
+
+        if preset_names.is_empty() {
+            return Ok(());
+        }
+
+        let current = parsed.get("active_global_preset").and_then(|v| v.as_str()).unwrap_or("");
+        let current_idx = preset_names.iter().position(|n| n == current).unwrap_or(0);
+        
+        let next_idx = if forward {
+            (current_idx + 1) % preset_names.len()
+        } else {
+            (current_idx + preset_names.len() - 1) % preset_names.len()
+        };
+
+        let next_preset = &preset_names[next_idx];
+
+        // Rewrite the configuration file line-by-line to preserve comments
+        let mut new_config_str = String::new();
+        for line in config_str.lines() {
+            if line.trim_start().starts_with("active_global_preset") {
+                new_config_str.push_str(&format!("active_global_preset = \"{}\"", next_preset));
+            } else {
+                new_config_str.push_str(line);
+            }
+            new_config_str.push('\n');
+        }
+
+        fs::write(config_path, new_config_str)?;
+        println!("\r\n🔄 Switched to preset '{}'\r", next_preset);
+    } else {
+        println!("\r\n⚠️ No [global_presets] section found in config.toml\r");
+    }
+
+    Ok(())
+}
+
 fn run_engine() -> anyhow::Result<bool> {
     let config_path = "config.toml";
     let app_config = load_or_create_config(config_path)?;
@@ -321,7 +367,8 @@ fn run_engine() -> anyhow::Result<bool> {
     )?;
 
     println!("\r\n🚀 Engine running at {}Hz!\r", output_stream_config.sample_rate.0);
-    println!("👉 Press 'r' to hot-reload config, 'q' or Esc to quit.\r");
+    // UPDATE: Add instructions for 'p' and 'o'
+    println!("👉 Press 'p'/'o' to rotate presets, 'r' to reload config, 'q' or Esc to quit.\r");
     
     output_stream.play()?;
 
@@ -329,6 +376,16 @@ fn run_engine() -> anyhow::Result<bool> {
         if poll(Duration::from_millis(50))? {
             if let Event::Key(event) = read()? {
                 match event.code {
+                    // ADDED: Rotate to the next preset
+                    KeyCode::Char('p') | KeyCode::Char('P') => {
+                        let _ = rotate_preset(true);
+                        return Ok(true); // Return true to trigger the hot-reload
+                    }
+                    // ADDED: Rotate to the previous preset
+                    KeyCode::Char('o') | KeyCode::Char('O') => {
+                        let _ = rotate_preset(false);
+                        return Ok(true); // Return true to trigger the hot-reload
+                    }
                     KeyCode::Char('r') | KeyCode::Char('R') => {
                         println!("\r\n🔄 Reloading audio engine and config...\r");
                         return Ok(true);
