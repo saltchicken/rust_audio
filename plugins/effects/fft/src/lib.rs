@@ -106,20 +106,40 @@ impl FftAnalyzerProcessor {
         let mut max_mag = 0.0;
         let mut peak_bin = 0;
 
-        // Search only the positive frequencies (up to Nyquist limit), skipping DC offset (bin 0)
+        // Search only the positive frequencies, skipping DC offset (bin 0)
+        // Note: Using .norm() instead of .norm_sqr() for accurate interpolation
         for i in 1..FFT_SIZE / 2 {
-            let mag = self.complex_buffer[i].norm_sqr(); // Using squared magnitude is faster
+            let mag = self.complex_buffer[i].norm();
             if mag > max_mag {
                 max_mag = mag;
                 peak_bin = i;
             }
         }
 
-        // Apply a threshold so it doesn't try to analyze complete silence
         if max_mag > 10.0 {
-            let freq = (peak_bin as f32 * self.sample_rate) / (FFT_SIZE as f32);
-            // The \r is strictly necessary here to reset the cursor in raw terminal mode
-            println!("Main Frequency: {:.1} Hz         \r", freq);
+            // Apply Parabolic Interpolation to find the exact sub-bin peak
+            let exact_bin = if peak_bin > 0 && peak_bin < (FFT_SIZE / 2 - 1) {
+                let y1 = self.complex_buffer[peak_bin - 1].norm();
+                let y2 = max_mag;
+                let y3 = self.complex_buffer[peak_bin + 1].norm();
+
+                let denominator = y1 - 2.0 * y2 + y3;
+                let offset = if denominator != 0.0 {
+                    0.5 * (y1 - y3) / denominator
+                } else {
+                    0.0
+                };
+                
+                peak_bin as f32 + offset
+            } else {
+                peak_bin as f32
+            };
+
+            // Calculate the exact frequency from our interpolated bin
+            let freq = (exact_bin * self.sample_rate) / (FFT_SIZE as f32);
+            
+            // The \r resets the cursor in raw terminal mode
+            println!("Main Frequency: {:.2} Hz         \r", freq);
         }
     }
 }
