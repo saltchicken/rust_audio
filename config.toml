@@ -5,15 +5,16 @@ capacity_seconds = 1.0
 plugin_chain = [
   "target/release/libsampler_plugin.so",
   # "target/release/libsynth_plugin.so",
-  "target/release/libdelay_clap_plugin.so",
+  # "target/release/libdelay_clap_plugin.so",
   "target/release/libreverb_test_plugin.so"
 ]
 input_device = "default"
 output_device = "default"
 
 [sampler]
-sample_path = "samples/snare.wav"
-root_note = 60
+# sample_path = "samples/guitar_muted.wav"
+sample_path = "samples/electric_guitar_pluck.wav"
+root_note = 72
 
 [delay]
 active_preset = "epic"

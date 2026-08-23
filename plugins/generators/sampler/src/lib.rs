@@ -27,7 +27,51 @@ impl Default for SamplerConfig {
     }
 }
 
-// --- 2. Minimal Voice Architecture ---
+// --- 2. Anti-Click Envelope ---
+
+struct MicroEnvelope {
+    level: f32,
+    state: u8, // 0: Idle, 1: Attack, 2: Sustain, 3: Release
+    attack_inc: f32,
+    release_inc: f32,
+}
+
+impl MicroEnvelope {
+    fn new(sample_rate: f32) -> Self {
+        Self {
+            level: 0.0,
+            state: 0,
+            attack_inc: 1.0 / (0.005 * sample_rate), // 5ms attack
+            release_inc: 1.0 / (0.015 * sample_rate), // 15ms release
+        }
+    }
+
+    fn trigger(&mut self) { self.state = 1; }
+    fn release(&mut self) { self.state = 3; }
+
+    fn process(&mut self) -> f32 {
+        match self.state {
+            1 => { // Attack
+                self.level += self.attack_inc;
+                if self.level >= 1.0 {
+                    self.level = 1.0;
+                    self.state = 2;
+                }
+            }
+            3 => { // Release
+                self.level -= self.release_inc;
+                if self.level <= 0.0 {
+                    self.level = 0.0;
+                    self.state = 0;
+                }
+            }
+            _ => {}
+        }
+        self.level
+    }
+}
+
+// --- 3. Minimal Voice Architecture ---
 
 struct Voice {
     position: f32,
@@ -35,16 +79,18 @@ struct Voice {
     velocity: f32,
     active: bool,
     active_note: Option<i16>,
+    env: MicroEnvelope,
 }
 
 impl Voice {
-    fn new() -> Self {
+    fn new(sample_rate: f32) -> Self {
         Self {
             position: 0.0,
             rate: 1.0,
             velocity: 0.0,
             active: false,
             active_note: None,
+            env: MicroEnvelope::new(sample_rate),
         }
     }
 
@@ -56,12 +102,11 @@ impl Voice {
         // Pitch shift based on root note
         self.rate = 2.0_f32.powf((note as f32 - root_note as f32) / 12.0);
         self.active = true;
+        self.env.trigger();
     }
 
     fn release(&mut self) {
-        // Simple samplers often stop on release or apply a quick fade out.
-        // We will just halt playback immediately for simplicity.
-        self.active = false;
+        self.env.release();
         self.active_note = None;
     }
 
@@ -70,27 +115,47 @@ impl Voice {
             return 0.0;
         }
 
-        let idx_floor = self.position.floor() as usize;
-        let idx_ceil = idx_floor + 1;
-        
-        if idx_ceil >= sample_data.len() {
+        let env_val = self.env.process();
+        if self.env.state == 0 {
             self.active = false;
-            self.active_note = None;
             return 0.0;
         }
 
-        // Linear interpolation
-        let frac = self.position - idx_floor as f32;
-        let s1 = sample_data[idx_floor];
-        let s2 = sample_data[idx_ceil];
-        let sample = s1 + (s2 - s1) * frac;
+        let idx = self.position.floor() as usize;
+        
+        if idx >= sample_data.len() {
+            self.active = false;
+            self.active_note = None;
+            self.env.state = 0; 
+            self.env.level = 0.0;
+            return 0.0;
+        }
+
+        let frac = self.position - idx as f32;
+
+        // Hermite Cubic Interpolation (requires 4 adjacent samples)
+        // We carefully handle array boundaries to avoid panics at the edges
+        let y0 = if idx > 0 { sample_data[idx - 1] } else { sample_data[0] };
+        let y1 = sample_data[idx];
+        let y2 = if idx + 1 < sample_data.len() { sample_data[idx + 1] } else { 0.0 };
+        let y3 = if idx + 2 < sample_data.len() { sample_data[idx + 2] } else { 0.0 };
+
+        // Calculate the Hermite curve coefficients
+        let c0 = y1;
+        let c1 = 0.5 * (y2 - y0);
+        let c2 = y0 - 2.5 * y1 + 2.0 * y2 - 0.5 * y3;
+        let c3 = 0.5 * (y3 - y0) + 1.5 * (y1 - y2);
+        
+        // Compute the smoothed sample
+        let sample = ((c3 * frac + c2) * frac + c1) * frac + c0;
 
         self.position += self.rate;
-        sample * self.velocity
+        
+        sample * self.velocity * env_val
     }
 }
 
-// --- 3. Audio Loading ---
+// --- 4. Audio Loading ---
 
 fn load_sample(path: &str, sample_rate: f32) -> Vec<f32> {
     if let Ok(mut reader) = hound::WavReader::open(path) {
@@ -145,7 +210,7 @@ fn load_sample(path: &str, sample_rate: f32) -> Vec<f32> {
     buf
 }
 
-// --- 4. CLAP Plugin Implementation ---
+// --- 5. CLAP Plugin Implementation ---
 
 const MAX_VOICES: usize = 16;
 
@@ -171,7 +236,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySamplerProcessor {
         
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES {
-            voices.push(Voice::new());
+            voices.push(Voice::new(sr));
         }
 
         Ok(Self {
@@ -231,6 +296,13 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySamplerProcessor {
                     self.block_buffer[i] += voice.process(&self.sample_data);
                 }
             }
+        }
+
+        // Apply gain staging and saturation to prevent clipping
+        for i in 0..frames {
+            // Drop gain slightly to give headroom for polyphony
+            let out = self.block_buffer[i] * 0.5;
+            self.block_buffer[i] = out.tanh();
         }
 
         for mut port_pair in audio.port_pairs() {
