@@ -107,7 +107,6 @@ impl FftAnalyzerProcessor {
         let mut peak_bin = 0;
 
         // Search only the positive frequencies, skipping DC offset (bin 0)
-        // Note: Using .norm() instead of .norm_sqr() for accurate interpolation
         for i in 1..FFT_SIZE / 2 {
             let mag = self.complex_buffer[i].norm();
             if mag > max_mag {
@@ -138,8 +137,19 @@ impl FftAnalyzerProcessor {
             // Calculate the exact frequency from our interpolated bin
             let freq = (exact_bin * self.sample_rate) / (FFT_SIZE as f32);
             
+            // Convert frequency to MIDI note number
+            let midi_float = 69.0 + 12.0 * (freq / 440.0).log2();
+            let midi_note = midi_float.round() as i32;
+            
+            // Map the MIDI note to a pitch class (C, C#, etc.) and octave
+            let notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+            
+            // rem_euclid correctly wraps negative numbers if the note is below C0
+            let pitch_class = notes[midi_note.rem_euclid(12) as usize];
+            let octave = (midi_note / 12) - 1;
+            
             // The \r resets the cursor in raw terminal mode
-            println!("Main Frequency: {:.2} Hz         \r", freq);
+            println!("Main Frequency: {:.2} Hz (Note: {}{})         \r", freq, pitch_class, octave);
         }
     }
 }
