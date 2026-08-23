@@ -1,15 +1,39 @@
 use clack_plugin::prelude::*;
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::fs;
 
 // --- Configuration Structs ---
 
 #[derive(Deserialize)]
 struct RootConfig {
-    delay: Option<DelayConfig>,
+    delay: Option<DelaySection>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
+struct DelaySection {
+    active_preset: Option<String>,
+    presets: Option<HashMap<String, DelayConfig>>,
+    #[serde(flatten)]
+    base: DelayConfig,
+}
+
+impl DelaySection {
+    fn resolve(&self) -> DelayConfig {
+        if let Some(name) = &self.active_preset {
+            if let Some(presets) = &self.presets {
+                if let Some(preset) = presets.get(name) {
+                    return preset.clone();
+                }
+            }
+            println!("Warning: Preset '{}' not found, falling back to base.", name);
+        }
+        self.base.clone()
+    }
+}
+
+#[derive(Deserialize, Clone)]
+#[serde(default)]
 struct DelayConfig {
     left_delay_ms: f64,
     right_delay_ms: f64,
@@ -100,11 +124,12 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         
-        // Read root config and extract the [delay] section
+        // Read root config and extract the resolved [delay] section
         let config = fs::read_to_string("config.toml")
             .ok()
             .and_then(|c| toml::from_str::<RootConfig>(&c).ok())
             .and_then(|root| root.delay)
+            .map(|sec| sec.resolve())
             .unwrap_or_default();
         
         let channels = vec![
