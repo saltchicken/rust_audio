@@ -5,11 +5,16 @@ use std::fs;
 use std::time::Duration;
 
 use clack_host::prelude::*;
+use clack_host::events::event_types::NoteOnEvent;
+use clack_host::events::event_types::NoteOffEvent;
+
 use crossterm::event::{poll, read, Event, KeyCode, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+use midir::{Ignore, MidiInput};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct MixerConfig {
+    enable_live_input: bool,
     latency_ms: f32,
     capacity_seconds: f32,
     plugin_chain: Vec<String>,
@@ -20,6 +25,7 @@ struct MixerConfig {
 impl Default for MixerConfig {
     fn default() -> Self {
         Self {
+            enable_live_input: false,
             latency_ms: 2.0,
             capacity_seconds: 0.5,
             plugin_chain: vec![],
@@ -49,7 +55,6 @@ impl HostHandlers for MixerHost {
     type AudioProcessor<'a> = ();
 }
 
-// Ensure the terminal returns to normal even if the program panics
 struct RawModeGuard;
 impl Drop for RawModeGuard {
     fn drop(&mut self) {
@@ -57,21 +62,17 @@ impl Drop for RawModeGuard {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+enum MidiMsg {
+    NoteOn(u8, f32),
+    NoteOff(u8),
+}
+
 fn run_engine() -> anyhow::Result<bool> {
     let config_path = "config.toml";
     let app_config = load_or_create_config(config_path)?;
     let host = cpal::default_host();
 
-    // 1. Bind to the configured Input Device
-    let input_device = if app_config.input_device.to_lowercase() == "default" {
-        host.default_input_device().expect("No default input device found")
-    } else {
-        host.input_devices()?
-            .find(|d| d.name().map(|n| n == app_config.input_device).unwrap_or(false))
-            .unwrap_or_else(|| panic!("Input device '{}' not found.", app_config.input_device))
-    };
-
-    // 2. Bind to the configured Output Device
     let output_device = if app_config.output_device.to_lowercase() == "default" {
         host.default_output_device().expect("No default output device found")
     } else {
@@ -80,45 +81,103 @@ fn run_engine() -> anyhow::Result<bool> {
             .unwrap_or_else(|| panic!("Output device '{}' not found.", app_config.output_device))
     };
 
-    // Note: We use \r\n here because raw terminal mode disables automatic carriage returns
-    println!("✅ Bound to Input:  {}\r", input_device.name()?);
     println!("✅ Bound to Output: {}\r", output_device.name()?);
 
-    let supported_input_config = input_device.default_input_config()?;
-    let mut input_stream_config: cpal::StreamConfig = supported_input_config.clone().into();
-    
     let supported_output_config = output_device.default_output_config()?;
     let mut output_stream_config: cpal::StreamConfig = supported_output_config.clone().into();
 
-    if let cpal::SupportedBufferSize::Range { min, max: _ } = supported_input_config.buffer_size() {
-        input_stream_config.buffer_size = cpal::BufferSize::Fixed((*min).max(64));
-    }
     if let cpal::SupportedBufferSize::Range { min, max: _ } = supported_output_config.buffer_size() {
         output_stream_config.buffer_size = cpal::BufferSize::Fixed((*min).max(64));
     }
 
-    let channels = input_stream_config.channels as usize;
-    let latency_frames = (app_config.latency_ms / 1_000.0) * input_stream_config.sample_rate.0 as f32;
-    let latency_samples = latency_frames as usize * channels;
+    let channels = output_stream_config.channels as usize;
+    
+    // --- MIDI SETUP ---
+    let midi_rb = HeapRb::<MidiMsg>::new(256);
+    let (mut midi_tx, mut midi_rx) = midi_rb.split();
 
-    let capacity_frames = app_config.capacity_seconds * input_stream_config.sample_rate.0 as f32;
-    let ring_capacity = capacity_frames as usize * channels;
+    let mut midi_in = MidiInput::new("Rust Synth Host").expect("Failed to initialize MIDI input");
+    midi_in.ignore(Ignore::None);
 
-    let ring = HeapRb::new(ring_capacity);
-    let (mut producer, mut consumer) = ring.split();
+    let midi_ports = midi_in.ports();
+    let _midi_connection = if let Some(port) = midi_ports.first() {
+        let port_name = midi_in.port_name(port).unwrap_or_else(|_| "Unknown USB Device".into());
+        println!("✅ Bound to MIDI: {}\r", port_name);
 
-    let padding = vec![0.0f32; latency_samples];
-    producer.push_slice(&padding);
+        let conn = midi_in.connect(port, "midir-read-input", move |_, message, _| {
+            if message.len() >= 3 {
+                let status_nibble = message[0] & 0xF0;
+                let note = message[1];
+                let velocity = message[2];
+                let normalized_vel = velocity as f32 / 127.0;
 
-    let host_info = HostInfo::new("Rust Mixer", "My Company", "https://example.com", "0.1.0")?;
+                if status_nibble == 0x90 && velocity > 0 {
+                    let _ = midi_tx.push(MidiMsg::NoteOn(note, normalized_vel));
+                } else if status_nibble == 0x80 || (status_nibble == 0x90 && velocity == 0) {
+                    let _ = midi_tx.push(MidiMsg::NoteOff(note));
+                }
+            }
+        }, ()).expect("Failed to connect to MIDI port");
+        
+        Some(conn)
+    } else {
+        println!("⚠️ No MIDI input ports found. Plug in a USB keyboard and restart.\r");
+        None
+    };
+
+    // --- CONDITIONAL INPUT SETUP ---
+    let mut opt_consumer = None;
+    let mut _input_stream_guard = None;
+
+    if app_config.enable_live_input {
+        let input_device = if app_config.input_device.to_lowercase() == "default" {
+            host.default_input_device().expect("No default input device found")
+        } else {
+            host.input_devices()?
+                .find(|d| d.name().map(|n| n == app_config.input_device).unwrap_or(false))
+                .unwrap_or_else(|| panic!("Input device not found"))
+        };
+
+        println!("✅ Bound to Input:  {}\r", input_device.name()?);
+
+        let supported_input_config = input_device.default_input_config()?;
+        let mut input_stream_config: cpal::StreamConfig = supported_input_config.clone().into();
+        
+        if let cpal::SupportedBufferSize::Range { min, max: _ } = supported_input_config.buffer_size() {
+            input_stream_config.buffer_size = cpal::BufferSize::Fixed((*min).max(64));
+        }
+
+        let latency_frames = (app_config.latency_ms / 1_000.0) * input_stream_config.sample_rate.0 as f32;
+        let ring_capacity = (app_config.capacity_seconds * input_stream_config.sample_rate.0 as f32) as usize * channels;
+
+        let ring = HeapRb::new(ring_capacity);
+        let (mut producer, consumer) = ring.split();
+        opt_consumer = Some(consumer);
+
+        let padding = vec![0.0f32; latency_frames as usize * channels];
+        producer.push_slice(&padding);
+
+        let input_stream = input_device.build_input_stream(
+            &input_stream_config,
+            move |data: &[f32], _: &_| { let _ = producer.push_slice(data); },
+            |err| eprintln!("Input stream error: {}\r", err),
+            None,
+        )?;
+        
+        input_stream.play()?;
+        _input_stream_guard = Some(input_stream);
+    } else {
+        println!("✅ Live input disabled (Generator Mode)\r");
+    }
+
+    let host_info = HostInfo::new("Rust Synth Host", "My Company", "https://example.com", "0.1.0")?;
     let max_frames = 65536;
     let audio_config = PluginAudioConfiguration {
-        sample_rate: input_stream_config.sample_rate.0 as f64,
+        sample_rate: output_stream_config.sample_rate.0 as f64,
         min_frames_count: 1,
         max_frames_count: max_frames as u32,
     };
 
-    // Load all plugins in the chain
     let mut plugin_entries = Vec::new();
     let mut audio_processors = Vec::new();
     let mut _plugin_instances = Vec::new();
@@ -142,17 +201,6 @@ fn run_engine() -> anyhow::Result<bool> {
         audio_processors.push(audio_processor);
     }
 
-    let err_fn = |err| eprintln!("Stream error: {}\r", err);
-
-    let input_stream = input_device.build_input_stream(
-        &input_stream_config,
-        move |data: &[f32], _: &_| {
-            let _ = producer.push_slice(data);
-        },
-        err_fn,
-        None,
-    )?;
-
     let mut intermediate_buffers = [
         vec![vec![0.0f32; max_frames as usize]; channels],
         vec![vec![0.0f32; max_frames as usize]; channels],
@@ -161,8 +209,10 @@ fn run_engine() -> anyhow::Result<bool> {
 
     let mut input_ports = AudioPorts::with_capacity(channels, 1);
     let mut output_ports = AudioPorts::with_capacity(channels, 1);
-    let input_events_buffer = EventBuffer::new();
+    let mut input_events_buffer = EventBuffer::new();
     let mut output_events_buffer = EventBuffer::new();
+
+    let err_fn = |err| eprintln!("Stream error: {}\r", err);
 
     let output_stream = output_device.build_output_stream(
         &output_stream_config,
@@ -170,12 +220,33 @@ fn run_engine() -> anyhow::Result<bool> {
             let samples_to_read = data.len();
             let frames = samples_to_read / channels;
 
-            let read = consumer.pop_slice(&mut interleaved_in[..samples_to_read]);
-            interleaved_in[read..samples_to_read].fill(0.0);
+            if let Some(consumer) = &mut opt_consumer {
+                let read = consumer.pop_slice(&mut interleaved_in[..samples_to_read]);
+                interleaved_in[read..samples_to_read].fill(0.0);
+            } else {
+                interleaved_in[..samples_to_read].fill(0.0);
+            }
 
             for frame in 0..frames {
                 for ch in 0..channels {
                     intermediate_buffers[0][ch][frame] = interleaved_in[frame * channels + ch];
+                }
+            }
+
+            input_events_buffer.clear();
+            while let Some(msg) = midi_rx.pop() {
+                match msg {
+                    MidiMsg::NoteOn(note, velocity) => {
+                        // Explicitly type the zeros: 0u16 (port), 0u16 (channel), note (u8), 0u32 (note_id)
+                        let pckn = Pckn::new(0u16, 0u16, note, 0u32);
+                        let event = NoteOnEvent::new(0, pckn, velocity as f64);
+                        input_events_buffer.push(&event);
+                    }
+                    MidiMsg::NoteOff(note) => {
+                        let pckn = Pckn::new(0u16, 0u16, note, 0u32);
+                        let event = NoteOffEvent::new(0, pckn, 0.0);
+                        input_events_buffer.push(&event);
+                    }
                 }
             }
 
@@ -238,29 +309,23 @@ fn run_engine() -> anyhow::Result<bool> {
         None,
     )?;
 
-    println!("\r\n🚀 Streaming live at {}Hz! \r", input_stream_config.sample_rate.0);
+    println!("\r\n🚀 Engine running at {}Hz!\r", output_stream_config.sample_rate.0);
     println!("👉 Press 'r' to hot-reload config, 'q' or Esc to quit.\r");
     
-    input_stream.play()?;
     output_stream.play()?;
 
-    // Application hotkey loop
     loop {
-        // Poll for event non-blocking (timeout 50ms)
         if poll(Duration::from_millis(50))? {
             if let Event::Key(event) = read()? {
                 match event.code {
-                    // Trigger a reload
                     KeyCode::Char('r') | KeyCode::Char('R') => {
                         println!("\r\n🔄 Reloading audio engine and config...\r");
                         return Ok(true);
                     }
-                    // Quit application
                     KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                         println!("\r\n🛑 Shutting down...\r");
                         return Ok(false);
                     }
-                    // Support standard Ctrl+C for quitting
                     KeyCode::Char('c') if event.modifiers.contains(KeyModifiers::CONTROL) => {
                         println!("\r\n🛑 Shutting down...\r");
                         return Ok(false);
@@ -273,14 +338,13 @@ fn run_engine() -> anyhow::Result<bool> {
 }
 
 fn main() -> anyhow::Result<()> {
-    // Put the terminal into raw mode so we can read unbuffered keystrokes
     enable_raw_mode()?;
-    let _guard = RawModeGuard; // Ensures we exit raw mode cleanly
+    let _guard = RawModeGuard;
 
     loop {
         match run_engine() {
-            Ok(true) => continue, // User pressed 'r', loop back and rebuild!
-            Ok(false) => break,   // User pressed 'q'
+            Ok(true) => continue,
+            Ok(false) => break,
             Err(e) => {
                 eprintln!("\r\n❌ Engine error: {:?}\r", e);
                 break;

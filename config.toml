@@ -1,3 +1,4 @@
+enable_live_input = true
 latency_ms = 2.0
 capacity_seconds = 1.0
 plugin_chain = [
@@ -10,7 +11,6 @@ output_device = "default"
 [delay]
 active_preset = "epic"
 
-# Fallback/Default config if the active preset isn't found
 left_delay_ms = 400.0
 right_delay_ms = 530.0
 feedback = 0.65
@@ -21,7 +21,6 @@ left_delay_ms = 400.0
 right_delay_ms = 530.0
 feedback = 0.65
 mix = 0.5
-
 
 [delay.presets.slapback]
 left_delay_ms = 120.0
@@ -36,9 +35,8 @@ feedback = 0.85
 mix = 0.6
 
 [reverb]
-active_preset = ""
+active_preset = "hall"
 
-# Fallback config
 comb_lengths = [1557.0, 1617.0, 1491.0, 1422.0]
 allpass_lengths = [225.0, 556.0]
 comb_feedback = 0.84
