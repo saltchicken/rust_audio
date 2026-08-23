@@ -2,22 +2,74 @@ use clack_plugin::events::event_types::{NoteOffEvent, NoteOnEvent};
 use clack_plugin::prelude::*;
 use std::f32::consts::PI;
 
-// --- 1. Minimal Voice Architecture ---
+// --- 1. Anti-Click Envelope ---
+
+struct MicroEnvelope {
+    level: f32,
+    state: u8, // 0: Idle, 1: Attack, 2: Sustain, 3: Release
+    attack_inc: f32,
+    release_inc: f32,
+}
+
+impl MicroEnvelope {
+    fn new(sample_rate: f32) -> Self {
+        Self {
+            level: 0.0,
+            state: 0,
+            // 5ms attack, 15ms release - just enough to stop pops!
+            attack_inc: 1.0 / (0.005 * sample_rate),
+            release_inc: 1.0 / (0.015 * sample_rate),
+        }
+    }
+
+    fn trigger(&mut self) {
+        self.state = 1;
+    }
+
+    fn release(&mut self) {
+        self.state = 3;
+    }
+
+    fn process(&mut self) -> f32 {
+        match self.state {
+            1 => { // Attack
+                self.level += self.attack_inc;
+                if self.level >= 1.0 {
+                    self.level = 1.0;
+                    self.state = 2;
+                }
+            }
+            3 => { // Release
+                self.level -= self.release_inc;
+                if self.level <= 0.0 {
+                    self.level = 0.0;
+                    self.state = 0;
+                }
+            }
+            _ => {}
+        }
+        self.level
+    }
+}
+
+// --- 2. Minimal Voice Architecture ---
 
 struct Voice {
     phase: f32,
     freq: f32,
     velocity: f32,
     active_note: Option<i16>,
+    env: MicroEnvelope,
 }
 
 impl Voice {
-    fn new() -> Self {
+    fn new(sample_rate: f32) -> Self {
         Self {
             phase: 0.0,
             freq: 440.0,
             velocity: 0.0,
             active_note: None,
+            env: MicroEnvelope::new(sample_rate),
         }
     }
 
@@ -25,23 +77,30 @@ impl Voice {
         self.active_note = Some(note);
         self.freq = 440.0 * 2.0_f32.powf((note as f32 - 69.0) / 12.0);
         self.velocity = velocity;
+        self.env.trigger();
     }
 
     fn release(&mut self) {
-        self.active_note = None;
+        self.env.release();
     }
 
     fn process(&mut self, sample_rate: f32) -> f32 {
+        // If the envelope is completely finished, kill the voice
+        if self.env.state == 0 {
+            self.active_note = None;
+            return 0.0;
+        }
+
         // Advance the phase
         let inc = self.freq / sample_rate;
         self.phase = (self.phase + inc).fract();
 
-        // Generate pure sine wave and scale by note velocity
-        (self.phase * 2.0 * PI).sin() * self.velocity
+        // Generate pure sine wave, scale by velocity and envelope
+        (self.phase * 2.0 * PI).sin() * self.velocity * self.env.process()
     }
 }
 
-// --- 2. CLAP Plugin Implementation ---
+// --- 3. CLAP Plugin Implementation ---
 
 pub struct MySynthPlugin;
 
@@ -55,7 +114,7 @@ impl DefaultPluginFactory for MySynthPlugin {
     fn get_descriptor() -> PluginDescriptor {
         PluginDescriptor::new(
             "com.example.rust-mixer-synth", 
-            "Simple Sine Synth"
+            "Smooth Sine Synth"
         )
     }
     fn new_shared(_host: HostSharedHandle<'_>) -> Result<Self::Shared<'_>, PluginError> { Ok(()) }
@@ -67,7 +126,7 @@ const MAX_VOICES: usize = 16;
 pub struct MySynthProcessor {
     voices: Vec<Voice>,
     sample_rate: f32,
-    block_buffer: Vec<f32>, // Our new mono scratch buffer!
+    block_buffer: Vec<f32>,
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
@@ -82,7 +141,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
         
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES {
-            voices.push(Voice::new());
+            voices.push(Voice::new(sr));
         }
 
         Ok(Self { 
@@ -101,7 +160,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
         
         let frames = audio.frames_count() as usize;
 
-        // Ensure our scratch buffer is large enough for the host's block size
         if self.block_buffer.len() < frames {
             self.block_buffer.resize(frames, 0.0);
         }
@@ -147,9 +205,10 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             }
         }
 
-        // Apply master volume to avoid clipping when playing chords
+        // Apply master volume and SOFT CLIPPING (tanh) to prevent harsh digital distortion
         for i in 0..frames {
-            self.block_buffer[i] *= 0.1;
+            let out = self.block_buffer[i] * 0.15;
+            self.block_buffer[i] = out.tanh();
         }
 
         // 3. Copy the rendered mono buffer to ALL output channels (Left and Right)
@@ -164,7 +223,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
                     _ => continue,
                 };
 
-                // Copy the exact same frame to both ears
                 for (i, sample) in buffer.iter_mut().enumerate().take(frames) {
                     *sample = self.block_buffer[i];
                 }
