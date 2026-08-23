@@ -1064,6 +1064,8 @@ name = "synth_plugin"
 version = "0.1.0"
 dependencies = [
  "clack-plugin",
+ "serde",
+ "toml",
 ]
 
 [[package]]

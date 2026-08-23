@@ -1,7 +1,8 @@
-enable_live_input = true
+enable_live_input = false
 latency_ms = 2.0
 capacity_seconds = 1.0
 plugin_chain = [
+  "target/release/libsynth_plugin.so",
   "target/release/libdelay_clap_plugin.so",
   "target/release/libreverb_test_plugin.so"
 ]
@@ -50,3 +51,58 @@ wet_scale = 0.15
 [reverb.presets.hall]
 mix = 0.7
 wet_scale = 0.25
+
+[synth]
+active_preset = "lead"
+
+# Base configuration fallback
+detune = 1.006
+attack_ms = 0.0
+decay_ms = 500.0
+sustain_level = 0.3
+release_ms = 400.0
+hammer_decay_ms = 100.0
+hammer_amount = 4000.0
+base_cutoff = 300.0
+key_track = 0.5
+vel_amount = 2000.0
+resonance = 1.5
+master_volume = 0.15
+
+[synth.presets.plucked]
+attack_ms = 0.0
+decay_ms = 250.0
+sustain_level = 0.0
+release_ms = 150.0
+hammer_decay_ms = 50.0
+hammer_amount = 6000.0
+base_cutoff = 150.0
+key_track = 0.6
+vel_amount = 3000.0
+resonance = 1.2
+
+[synth.presets.pad]
+detune = 1.015
+attack_ms = 800.0
+decay_ms = 1200.0
+sustain_level = 0.8
+release_ms = 1500.0
+hammer_decay_ms = 10.0
+hammer_amount = 0.0
+base_cutoff = 400.0
+key_track = 0.3
+vel_amount = 800.0
+resonance = 1.1
+
+[synth.presets.lead]
+detune = 1.008
+attack_ms = 15.0
+decay_ms = 300.0
+sustain_level = 0.6
+release_ms = 50.0
+hammer_decay_ms = 80.0
+hammer_amount = 2000.0
+base_cutoff = 800.0
+key_track = 1.0
+vel_amount = 1000.0
+resonance = 1.8
