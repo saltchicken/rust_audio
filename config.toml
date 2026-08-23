@@ -35,7 +35,7 @@ feedback = 0.85
 mix = 0.6
 
 [reverb]
-active_preset = "hall"
+active_preset = ""
 
 comb_lengths = [1557.0, 1617.0, 1491.0, 1422.0]
 allpass_lengths = [225.0, 556.0]
