@@ -1,0 +1,7 @@
+latency_ms = 2.0
+capacity_seconds = 1.0
+plugin_chain = [
+    "../target/release/libexample_clap_plugin.so"
+]
+input_device = "default"
+output_device = "default"
