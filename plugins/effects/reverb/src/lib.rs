@@ -1,35 +1,12 @@
 use clack_plugin::prelude::*;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::fs;
+use plugin_core::{export_clap_plugin, load_plugin_config, PluginConfigSection};
 
 // --- Configuration Structs ---
 
 #[derive(Deserialize)]
 struct RootConfig {
-    reverb: Option<ReverbSection>,
-}
-
-#[derive(Deserialize, Default)]
-struct ReverbSection {
-    active_preset: Option<String>,
-    presets: Option<HashMap<String, ReverbConfig>>,
-    #[serde(flatten)]
-    base: ReverbConfig,
-}
-
-impl ReverbSection {
-    fn resolve(&self) -> ReverbConfig {
-        if let Some(name) = &self.active_preset {
-            if let Some(presets) = &self.presets {
-                if let Some(preset) = presets.get(name) {
-                    return preset.clone();
-                }
-            }
-            println!("Warning: Preset '{}' not found, falling back to base.", name);
-        }
-        self.base.clone()
-    }
+    reverb: Option<PluginConfigSection<ReverbConfig>>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -187,34 +164,6 @@ impl ReverbChannel {
 
 // --- 3. CLAP Plugin Implementation ---
 
-pub struct MyReverbPlugin;
-
-impl Plugin for MyReverbPlugin {
-    type AudioProcessor<'a> = MyReverbPluginAudioProcessor;
-    type Shared<'a> = ();
-    type MainThread<'a> = ();
-}
-
-impl DefaultPluginFactory for MyReverbPlugin {
-    fn get_descriptor() -> PluginDescriptor {
-        PluginDescriptor::new(
-            "com.example.rust-mixer-reverb", 
-            "Rust Mixer Configurable Reverb"
-        )
-    }
-
-    fn new_shared(_host: HostSharedHandle<'_>) -> Result<Self::Shared<'_>, PluginError> {
-        Ok(())
-    }
-
-    fn new_main_thread<'a>(
-        _host: HostMainThreadHandle<'a>,
-        _shared: &'a Self::Shared<'a>,
-    ) -> Result<Self::MainThread<'a>, PluginError> {
-        Ok(())
-    }
-}
-
 pub struct MyReverbPluginAudioProcessor {
     channels: Vec<ReverbChannel>,
 }
@@ -228,13 +177,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         
-        // Read root config and extract the resolved [reverb] section
-        let config = fs::read_to_string("config.toml")
-            .ok()
-            .and_then(|c| toml::from_str::<RootConfig>(&c).ok())
-            .and_then(|root| root.reverb)
-            .map(|sec| sec.resolve())
-            .unwrap_or_default();
+        let config = load_plugin_config::<RootConfig, _, _>(|root| root.reverb);
         
         let channels = vec![
             ReverbChannel::new(sr, config.left_spread, &config),
@@ -281,4 +224,9 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
     }
 }
 
-clack_export_entry!(SinglePluginEntry<MyReverbPlugin>);
+export_clap_plugin!(
+    MyReverbPlugin, 
+    MyReverbPluginAudioProcessor, 
+    "com.example.rust-mixer-reverb", 
+    "Rust Mixer Configurable Reverb"
+);

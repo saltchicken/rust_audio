@@ -1,35 +1,12 @@
 use clack_plugin::prelude::*;
 use serde::Deserialize;
-use std::collections::HashMap;
-use std::fs;
+use plugin_core::{export_clap_plugin, load_plugin_config, PluginConfigSection};
 
 // --- Configuration Structs ---
 
 #[derive(Deserialize)]
 struct RootConfig {
-    delay: Option<DelaySection>,
-}
-
-#[derive(Deserialize, Default)]
-struct DelaySection {
-    active_preset: Option<String>,
-    presets: Option<HashMap<String, DelayConfig>>,
-    #[serde(flatten)]
-    base: DelayConfig,
-}
-
-impl DelaySection {
-    fn resolve(&self) -> DelayConfig {
-        if let Some(name) = &self.active_preset {
-            if let Some(presets) = &self.presets {
-                if let Some(preset) = presets.get(name) {
-                    return preset.clone();
-                }
-            }
-            println!("Warning: Preset '{}' not found, falling back to base.", name);
-        }
-        self.base.clone()
-    }
+    delay: Option<PluginConfigSection<DelayConfig>>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -83,34 +60,6 @@ impl EchoDelay {
 
 // --- 2. CLAP Plugin Implementation ---
 
-pub struct MyDelayPlugin;
-
-impl Plugin for MyDelayPlugin {
-    type AudioProcessor<'a> = MyDelayPluginAudioProcessor;
-    type Shared<'a> = ();
-    type MainThread<'a> = ();
-}
-
-impl DefaultPluginFactory for MyDelayPlugin {
-    fn get_descriptor() -> PluginDescriptor {
-        PluginDescriptor::new(
-            "com.example.rust-mixer-delay", 
-            "Rust Mixer Configurable Delay"
-        )
-    }
-
-    fn new_shared(_host: HostSharedHandle<'_>) -> Result<Self::Shared<'_>, PluginError> {
-        Ok(())
-    }
-
-    fn new_main_thread<'a>(
-        _host: HostMainThreadHandle<'a>,
-        _shared: &'a Self::Shared<'a>,
-    ) -> Result<Self::MainThread<'a>, PluginError> {
-        Ok(())
-    }
-}
-
 pub struct MyDelayPluginAudioProcessor {
     channels: Vec<EchoDelay>,
 }
@@ -124,13 +73,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         
-        // Read root config and extract the resolved [delay] section
-        let config = fs::read_to_string("config.toml")
-            .ok()
-            .and_then(|c| toml::from_str::<RootConfig>(&c).ok())
-            .and_then(|root| root.delay)
-            .map(|sec| sec.resolve())
-            .unwrap_or_default();
+        let config = load_plugin_config::<RootConfig, _, _>(|root| root.delay);
         
         let channels = vec![
             EchoDelay::new(sr, config.left_delay_ms, config.feedback, config.mix),
@@ -177,4 +120,10 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
     }
 }
 
-clack_export_entry!(SinglePluginEntry<MyDelayPlugin>);
+// Generates `MyDelayPlugin` trait implementations and bindings magically!
+export_clap_plugin!(
+    MyDelayPlugin, 
+    MyDelayPluginAudioProcessor, 
+    "com.example.rust-mixer-delay", 
+    "Rust Mixer Configurable Delay"
+);

@@ -1,7 +1,10 @@
+# Cargo.toml
 [workspace]
 members = [
     "mixer",
-    "plugins/*"
+    "plugins/core",
+    "plugins/effects/*",
+    "plugins/generators/*"
 ]
 resolver = "2"
 

@@ -322,8 +322,8 @@ name = "delay_clap_plugin"
 version = "0.1.0"
 dependencies = [
  "clack-plugin",
+ "plugin_core",
  "serde",
- "toml",
 ]
 
 [[package]]
@@ -814,6 +814,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
+name = "plugin_core"
+version = "0.1.0"
+dependencies = [
+ "clack-plugin",
+ "serde",
+ "toml",
+]
+
+[[package]]
 name = "proc-macro-crate"
 version = "3.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -889,8 +898,8 @@ name = "reverb_test_plugin"
 version = "0.1.0"
 dependencies = [
  "clack-plugin",
+ "plugin_core",
  "serde",
- "toml",
 ]
 
 [[package]]
@@ -1064,8 +1073,7 @@ name = "synth_plugin"
 version = "0.1.0"
 dependencies = [
  "clack-plugin",
- "serde",
- "toml",
+ "plugin_core",
 ]
 
 [[package]]
