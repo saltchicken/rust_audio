@@ -1,3 +1,7 @@
+# Set this to a preset name in `global_presets` to override local plugin settings. 
+# Leave empty or comment out to use individual plugin configurations.
+active_global_preset = "dreamscape"
+
 sample_rate = 48000
 enable_live_input = false
 latency_ms = 2.0
@@ -9,6 +13,31 @@ plugin_chain = [
 ]
 input_device = "default"
 output_device = "default"
+
+# ==============================================================================
+# GLOBAL PRESETS
+# ==============================================================================
+
+[global_presets.dreamscape.synth]
+attack_ms = 1200.0
+release_ms = 2500.0
+volume = 0.35
+
+[global_presets.dreamscape.delay]
+left_delay_ms = 800.0
+right_delay_ms = 950.0
+feedback = 0.85
+mix = 0.6
+
+[global_presets.dreamscape.reverb]
+comb_lengths = [2000.0, 2100.0, 2200.0, 2300.0]
+mix = 0.8
+wet_scale = 0.35
+
+
+# ==============================================================================
+# INDIVIDUAL PLUGIN CONFIGS (Fallbacks if global is disabled)
+# ==============================================================================
 
 [delay]
 active_preset = "epic"
@@ -64,10 +93,6 @@ wet_scale = 0.15
 [reverb.presets.hall]
 mix = 0.7
 wet_scale = 0.25
-
-
-
-
 
 [synth]
 active_preset = ""

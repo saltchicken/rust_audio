@@ -14,6 +14,7 @@ use midir::{Ignore, MidiInput};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct MixerConfig {
+    pub active_global_preset: Option<String>, // Added support
     pub sample_rate: Option<u32>,
     pub enable_live_input: bool,
     pub latency_ms: f32,
@@ -26,6 +27,7 @@ struct MixerConfig {
 impl Default for MixerConfig {
     fn default() -> Self {
         Self {
+            active_global_preset: None,
             sample_rate: None,
             enable_live_input: false,
             latency_ms: 2.0,
@@ -247,7 +249,6 @@ fn run_engine() -> anyhow::Result<bool> {
             while let Some(msg) = midi_rx.pop() {
                 match msg {
                     MidiMsg::NoteOn(note, velocity) => {
-                        // Explicitly type the zeros: 0u16 (port), 0u16 (channel), note (u8), 0u32 (note_id)
                         let pckn = Pckn::new(0u16, 0u16, note, 0u32);
                         let event = NoteOnEvent::new(0, pckn, velocity as f64);
                         input_events_buffer.push(&event);

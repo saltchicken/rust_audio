@@ -4,7 +4,7 @@ use plugin_core::{export_clap_plugin, load_plugin_config, PluginConfigSection};
 
 // --- Configuration Structs ---
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 struct RootConfig {
     delay: Option<PluginConfigSection<DelayConfig>>,
 }
@@ -73,7 +73,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         
-        let config = load_plugin_config::<RootConfig, _, _>(|root| root.delay);
+        let config = load_plugin_config::<RootConfig, _, _>(|root| root.delay.as_ref());
         
         let channels = vec![
             EchoDelay::new(sr, config.left_delay_ms, config.feedback, config.mix),
@@ -120,7 +120,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
     }
 }
 
-// Generates `MyDelayPlugin` trait implementations and bindings magically!
 export_clap_plugin!(
     MyDelayPlugin, 
     MyDelayPluginAudioProcessor, 

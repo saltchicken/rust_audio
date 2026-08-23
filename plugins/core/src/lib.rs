@@ -15,29 +15,56 @@ pub struct PluginConfigSection<T: Clone + Default> {
 impl<T: Clone + Default> PluginConfigSection<T> {
     pub fn resolve(&self) -> T {
         if let Some(name) = &self.active_preset {
-            if let Some(presets) = &self.presets {
-                if let Some(preset) = presets.get(name) {
-                    return preset.clone();
+            if !name.is_empty() {
+                if let Some(presets) = &self.presets {
+                    if let Some(preset) = presets.get(name) {
+                        return preset.clone();
+                    }
                 }
+                println!("Warning: Preset '{}' not found, falling back to base.", name);
             }
-            println!("Warning: Preset '{}' not found, falling back to base.", name);
         }
         self.base.clone()
     }
 }
 
+// Intercepts the top level config to check for active global presets
+#[derive(Deserialize, Default)]
+struct GlobalConfig<R> {
+    active_global_preset: Option<String>,
+    global_presets: Option<HashMap<String, R>>,
+    #[serde(flatten)]
+    base: R,
+}
+
 pub fn load_plugin_config<R, F, T>(extract_section: F) -> T
 where
-    R: for<'a> Deserialize<'a>,
-    F: FnOnce(R) -> Option<PluginConfigSection<T>>,
+    R: for<'a> Deserialize<'a> + Default,
+    F: Fn(&R) -> Option<&PluginConfigSection<T>>,
     T: Clone + Default,
 {
-    fs::read_to_string("config.toml")
-        .ok()
-        .and_then(|c| toml::from_str::<R>(&c).ok())
-        .and_then(extract_section)
-        .map(|sec| sec.resolve())
-        .unwrap_or_default()
+    let config_str = fs::read_to_string("config.toml").unwrap_or_default();
+    let global_cfg: GlobalConfig<R> = toml::from_str(&config_str).unwrap_or_default();
+
+    // 1. Try to load from active global preset
+    if let Some(global_name) = &global_cfg.active_global_preset {
+        if !global_name.is_empty() {
+            if let Some(global_presets) = &global_cfg.global_presets {
+                if let Some(preset_root) = global_presets.get(global_name) {
+                    if let Some(section) = extract_section(preset_root) {
+                        return section.resolve();
+                    }
+                }
+            }
+        }
+    }
+
+    // 2. Fallback to local base config
+    if let Some(section) = extract_section(&global_cfg.base) {
+        return section.resolve();
+    }
+
+    T::default()
 }
 
 // --- 2. CLAP Boilerplate Macro ---

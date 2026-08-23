@@ -6,7 +6,7 @@ use std::f32::consts::PI;
 
 // --- 1. Configuration ---
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 struct RootConfig {
     synth: Option<PluginConfigSection<SynthConfig>>,
 }
@@ -147,7 +147,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
         let sr = audio_config.sample_rate as f32;
         let max_frames = audio_config.max_frames_count as usize;
         
-        let config = load_plugin_config::<RootConfig, _, _>(|root| root.synth);
+        let config = load_plugin_config::<RootConfig, _, _>(|root| root.synth.as_ref());
 
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES {
@@ -214,7 +214,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             }
         }
 
-        // Apply config volume instead of hardcoded 0.15
         for i in 0..frames {
             let out = self.block_buffer[i] * self.config.volume;
             self.block_buffer[i] = out.tanh();

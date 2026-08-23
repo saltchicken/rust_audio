@@ -4,7 +4,7 @@ use plugin_core::{export_clap_plugin, load_plugin_config, PluginConfigSection};
 
 // --- Configuration Structs ---
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Default)]
 struct RootConfig {
     reverb: Option<PluginConfigSection<ReverbConfig>>,
 }
@@ -177,7 +177,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         
-        let config = load_plugin_config::<RootConfig, _, _>(|root| root.reverb);
+        let config = load_plugin_config::<RootConfig, _, _>(|root| root.reverb.as_ref());
         
         let channels = vec![
             ReverbChannel::new(sr, config.left_spread, &config),
