@@ -14,17 +14,19 @@ use midir::{Ignore, MidiInput};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct MixerConfig {
-    enable_live_input: bool,
-    latency_ms: f32,
-    capacity_seconds: f32,
-    plugin_chain: Vec<String>,
-    input_device: String,
-    output_device: String,
+    pub sample_rate: Option<u32>,
+    pub enable_live_input: bool,
+    pub latency_ms: f32,
+    pub capacity_seconds: f32,
+    pub plugin_chain: Vec<String>,
+    pub input_device: String,
+    pub output_device: String,
 }
 
 impl Default for MixerConfig {
     fn default() -> Self {
         Self {
+            sample_rate: None,
             enable_live_input: false,
             latency_ms: 2.0,
             capacity_seconds: 0.5,
@@ -86,6 +88,10 @@ fn run_engine() -> anyhow::Result<bool> {
     let supported_output_config = output_device.default_output_config()?;
     let mut output_stream_config: cpal::StreamConfig = supported_output_config.clone().into();
 
+    if let Some(sr) = app_config.sample_rate {
+        output_stream_config.sample_rate = cpal::SampleRate(sr);
+    }
+
     if let cpal::SupportedBufferSize::Range { min, max: _ } = supported_output_config.buffer_size() {
         output_stream_config.buffer_size = cpal::BufferSize::Fixed((*min).max(64));
     }
@@ -142,6 +148,10 @@ fn run_engine() -> anyhow::Result<bool> {
 
         let supported_input_config = input_device.default_input_config()?;
         let mut input_stream_config: cpal::StreamConfig = supported_input_config.clone().into();
+
+        if let Some(sr) = app_config.sample_rate {
+            input_stream_config.sample_rate = cpal::SampleRate(sr);
+        }
         
         if let cpal::SupportedBufferSize::Range { min, max: _ } = supported_input_config.buffer_size() {
             input_stream_config.buffer_size = cpal::BufferSize::Fixed((*min).max(64));

@@ -1,3 +1,4 @@
+sample_rate = 48000
 enable_live_input = false
 latency_ms = 2.0
 capacity_seconds = 1.0
