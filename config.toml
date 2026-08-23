@@ -3,9 +3,10 @@ enable_live_input = false
 latency_ms = 2.0
 capacity_seconds = 1.0
 plugin_chain = [
-  "target/release/libsampler_plugin.so",
+  # "target/release/libsampler_plugin.so",
   # "target/release/libsynth_plugin.so",
-  # "target/release/libdelay_clap_plugin.so",
+  "target/release/liblead_synth_plugin.so",
+  "target/release/libdelay_clap_plugin.so",
   "target/release/libreverb_test_plugin.so"
 ]
 input_device = "default"
@@ -58,3 +59,18 @@ wet_scale = 0.15
 [reverb.presets.hall]
 mix = 0.7
 wet_scale = 0.25
+
+[lead_synth]
+# Mix Saw & Square (0.0 = full saw, 1.0 = full square)
+osc_mix = 0.35 
+
+# Filter properties
+filter_cutoff = 150.0      # Base freq the filter rests at
+filter_res = 0.82          # Resonance for squelchy leads
+filter_env_amount = 5500.0 # How high the ADSR pushes the filter cutoff
+
+# ADSR Envelope (Applies to both volume and filter)
+attack_ms = 8.0            # Quick, punchy attack
+decay_ms = 350.0           # Medium decay for a plucked feel
+sustain_level = 0.4        # Settles to 40% volume while holding down the key
+release_ms = 400.0         # Beautiful tail after letting go
