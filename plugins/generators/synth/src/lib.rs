@@ -1,6 +1,6 @@
 use clack_plugin::events::event_types::{NoteOffEvent, NoteOnEvent};
 use clack_plugin::prelude::*;
-use plugin_core::{export_clap_plugin, load_plugin_config, PluginConfigSection};
+use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
 use std::f32::consts::PI;
 
@@ -8,7 +8,7 @@ use std::f32::consts::PI;
 
 #[derive(Deserialize, Default)]
 struct RootConfig {
-    synth: Option<PluginConfigSection<SynthConfig>>,
+    synth: Option<SynthConfig>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -214,6 +214,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             }
         }
 
+        // Apply config volume instead of hardcoded 0.15
         for i in 0..frames {
             let out = self.block_buffer[i] * self.config.volume;
             self.block_buffer[i] = out.tanh();

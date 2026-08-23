@@ -1,12 +1,12 @@
 use clack_plugin::prelude::*;
 use serde::Deserialize;
-use plugin_core::{export_clap_plugin, load_plugin_config, PluginConfigSection};
+use plugin_core::{export_clap_plugin, load_plugin_config};
 
 // --- Configuration Structs ---
 
 #[derive(Deserialize, Default)]
 struct RootConfig {
-    reverb: Option<PluginConfigSection<ReverbConfig>>,
+    reverb: Option<ReverbConfig>,
 }
 
 #[derive(Deserialize, Clone)]

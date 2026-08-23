@@ -1,12 +1,12 @@
 use clack_plugin::prelude::*;
 use serde::Deserialize;
-use plugin_core::{export_clap_plugin, load_plugin_config, PluginConfigSection};
+use plugin_core::{export_clap_plugin, load_plugin_config};
 
 // --- Configuration Structs ---
 
 #[derive(Deserialize, Default)]
 struct RootConfig {
-    delay: Option<PluginConfigSection<DelayConfig>>,
+    delay: Option<DelayConfig>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -120,6 +120,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
     }
 }
 
+// Generates `MyDelayPlugin` trait implementations and bindings magically!
 export_clap_plugin!(
     MyDelayPlugin, 
     MyDelayPluginAudioProcessor, 
