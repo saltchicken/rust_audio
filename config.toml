@@ -4,8 +4,8 @@ latency_ms = 2.0
 capacity_seconds = 1.0
 plugin_chain = [
   # "target/release/libsampler_plugin.so",
-  # "target/release/libsynth_plugin.so",
-  "target/release/liblead_synth_plugin.so",
+  "target/release/libsynth_plugin.so",
+  # "target/release/liblead_synth_plugin.so",
   "target/release/libdelay_clap_plugin.so",
   "target/release/libreverb_test_plugin.so"
 ]
@@ -60,17 +60,81 @@ wet_scale = 0.15
 mix = 0.7
 wet_scale = 0.25
 
+
+
+
+
+[synth]
+active_preset = ""
+
+attack_ms = 5.0
+release_ms = 15.0
+volume = 0.15
+
+[synth.presets.staccato_pluck]
+attack_ms = 2.0
+release_ms = 40.0
+volume = 0.2
+
+[synth.presets.ambient_pad]
+attack_ms = 1200.0
+release_ms = 2500.0
+volume = 0.35
+
+[synth.presets.glassy_keys]
+attack_ms = 45.0
+release_ms = 800.0
+volume = 0.18
+
+
+
+
+
 [lead_synth]
-# Mix Saw & Square (0.0 = full saw, 1.0 = full square)
+# Change this to "eighties_brass" or "acid_squelch" and hit 'r' to hot-reload!
+active_preset = "acid_squelch"
+
+# The base configuration acts as a fallback if the active_preset is missing or empty
 osc_mix = 0.35 
+filter_cutoff = 150.0      
+filter_res = 0.82          
+filter_env_amount = 5500.0 
+attack_ms = 8.0            
+decay_ms = 350.0           
+sustain_level = 0.4        
+release_ms = 400.0         
 
-# Filter properties
-filter_cutoff = 150.0      # Base freq the filter rests at
-filter_res = 0.82          # Resonance for squelchy leads
-filter_env_amount = 5500.0 # How high the ADSR pushes the filter cutoff
+# --- PRESETS ---
 
-# ADSR Envelope (Applies to both volume and filter)
-attack_ms = 8.0            # Quick, punchy attack
-decay_ms = 350.0           # Medium decay for a plucked feel
-sustain_level = 0.4        # Settles to 40% volume while holding down the key
-release_ms = 400.0         # Beautiful tail after letting go
+[lead_synth.presets.plucky]
+# A very fast attack and decay with almost zero sustain. Great for arpeggios.
+osc_mix = 0.1              # Mostly sawtooth
+filter_cutoff = 80.0       # Filter starts very low
+filter_res = 0.70          # Moderate resonance
+filter_env_amount = 7000.0 # Massive envelope sweep to give it "bite"
+attack_ms = 2.0            # Instant attack
+decay_ms = 150.0           # Very fast decay
+sustain_level = 0.05       # Barely any sustain
+release_ms = 150.0         # Short release
+
+[lead_synth.presets.eighties_brass]
+# Slower attack on both the volume and the filter, creating that "Vangelis" swell.
+osc_mix = 0.5              # Perfect 50/50 blend of Saw and Square
+filter_cutoff = 300.0
+filter_res = 0.2           # Very low resonance so it sounds smooth, not squelchy
+filter_env_amount = 3000.0 
+attack_ms = 90.0           # Swells in slowly
+decay_ms = 400.0
+sustain_level = 0.8        # Holds loud while you press the key
+release_ms = 600.0         # Long, majestic release
+
+[lead_synth.presets.acid_squelch]
+# Hollow square wave body with a highly resonant, aggressive filter sweep.
+osc_mix = 0.9              # Almost entirely square wave
+filter_cutoff = 120.0
+filter_res = 0.96          # Extreme resonance - almost self-oscillating
+filter_env_amount = 4500.0
+attack_ms = 10.0
+decay_ms = 200.0
+sustain_level = 0.2
+release_ms = 100.0

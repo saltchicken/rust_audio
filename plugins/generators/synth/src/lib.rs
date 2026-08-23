@@ -1,9 +1,35 @@
 use clack_plugin::events::event_types::{NoteOffEvent, NoteOnEvent};
 use clack_plugin::prelude::*;
-use plugin_core::export_clap_plugin;
+use plugin_core::{export_clap_plugin, load_plugin_config, PluginConfigSection};
+use serde::Deserialize;
 use std::f32::consts::PI;
 
-// --- 1. Anti-Click Envelope ---
+// --- 1. Configuration ---
+
+#[derive(Deserialize)]
+struct RootConfig {
+    synth: Option<PluginConfigSection<SynthConfig>>,
+}
+
+#[derive(Deserialize, Clone)]
+#[serde(default)]
+struct SynthConfig {
+    attack_ms: f32,
+    release_ms: f32,
+    volume: f32,
+}
+
+impl Default for SynthConfig {
+    fn default() -> Self {
+        Self {
+            attack_ms: 5.0,
+            release_ms: 15.0,
+            volume: 0.15,
+        }
+    }
+}
+
+// --- 2. Anti-Click Envelope ---
 
 struct MicroEnvelope {
     level: f32,
@@ -13,16 +39,21 @@ struct MicroEnvelope {
 }
 
 impl MicroEnvelope {
-    fn new(sample_rate: f32) -> Self {
+    fn new() -> Self {
         Self {
             level: 0.0,
             state: 0,
-            attack_inc: 1.0 / (0.005 * sample_rate),
-            release_inc: 1.0 / (0.015 * sample_rate),
+            attack_inc: 0.0,
+            release_inc: 0.0,
         }
     }
 
-    fn trigger(&mut self) { self.state = 1; }
+    fn trigger(&mut self, sample_rate: f32, attack_ms: f32, release_ms: f32) {
+        self.attack_inc = 1.0 / ((attack_ms.max(0.1) / 1000.0) * sample_rate);
+        self.release_inc = 1.0 / ((release_ms.max(0.1) / 1000.0) * sample_rate);
+        self.state = 1; 
+    }
+    
     fn release(&mut self) { self.state = 3; }
 
     fn process(&mut self) -> f32 {
@@ -47,7 +78,7 @@ impl MicroEnvelope {
     }
 }
 
-// --- 2. Minimal Voice Architecture ---
+// --- 3. Minimal Voice Architecture ---
 
 struct Voice {
     phase: f32,
@@ -59,22 +90,22 @@ struct Voice {
 }
 
 impl Voice {
-    fn new(sample_rate: f32) -> Self {
+    fn new() -> Self {
         Self {
             phase: 0.0,
             freq: 440.0,
             velocity: 0.0,
             active_note: None,
-            env: MicroEnvelope::new(sample_rate),
+            env: MicroEnvelope::new(),
             pitch_gain: 1.0,
         }
     }
 
-    fn trigger(&mut self, note: i16, velocity: f32) {
+    fn trigger(&mut self, note: i16, velocity: f32, config: &SynthConfig, sample_rate: f32) {
         self.active_note = Some(note);
         self.freq = 440.0 * 2.0_f32.powf((note as f32 - 69.0) / 12.0);
         self.velocity = velocity;
-        self.env.trigger();
+        self.env.trigger(sample_rate, config.attack_ms, config.release_ms);
         self.pitch_gain = (440.0 / self.freq).sqrt().clamp(0.4, 3.0);
     }
 
@@ -95,7 +126,7 @@ impl Voice {
     }
 }
 
-// --- 3. CLAP Plugin Implementation ---
+// --- 4. CLAP Plugin Implementation ---
 
 const MAX_VOICES: usize = 16;
 
@@ -103,6 +134,7 @@ pub struct MySynthProcessor {
     voices: Vec<Voice>,
     sample_rate: f32,
     block_buffer: Vec<f32>,
+    config: SynthConfig,
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
@@ -115,15 +147,18 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
         let sr = audio_config.sample_rate as f32;
         let max_frames = audio_config.max_frames_count as usize;
         
+        let config = load_plugin_config::<RootConfig, _, _>(|root| root.synth);
+
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES {
-            voices.push(Voice::new(sr));
+            voices.push(Voice::new());
         }
 
         Ok(Self { 
             voices, 
             sample_rate: sr,
-            block_buffer: vec![0.0; max_frames]
+            block_buffer: vec![0.0; max_frames],
+            config,
         })
     }
 
@@ -146,7 +181,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
                     let key = k as i16;
                     let vel = note_on.velocity() as f32;
                     let voice_idx = self.voices.iter().position(|v| v.active_note.is_none()).unwrap_or(0);
-                    self.voices[voice_idx].trigger(key, vel);
+                    self.voices[voice_idx].trigger(key, vel, &self.config, self.sample_rate);
                 }
             } else if let Some(note_off) = event.as_event::<NoteOffEvent>() {
                 match note_off.key() {
@@ -179,8 +214,9 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             }
         }
 
+        // Apply config volume instead of hardcoded 0.15
         for i in 0..frames {
-            let out = self.block_buffer[i] * 0.15;
+            let out = self.block_buffer[i] * self.config.volume;
             self.block_buffer[i] = out.tanh();
         }
 
