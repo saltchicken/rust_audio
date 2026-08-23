@@ -3,12 +3,17 @@ enable_live_input = false
 latency_ms = 2.0
 capacity_seconds = 1.0
 plugin_chain = [
-  "target/release/libsynth_plugin.so",
+  "target/release/libsampler_plugin.so",
+  # "target/release/libsynth_plugin.so",
   "target/release/libdelay_clap_plugin.so",
   "target/release/libreverb_test_plugin.so"
 ]
 input_device = "default"
 output_device = "default"
+
+[sampler]
+sample_path = "samples/snare.wav"
+root_note = 60
 
 [delay]
 active_preset = "epic"
