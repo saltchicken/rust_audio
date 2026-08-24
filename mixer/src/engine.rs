@@ -42,7 +42,7 @@ impl AudioEngine {
 
         println!("✅ Bound to Output: {}\r", output_device.name()?);
 
-        let target_sr = cpal::SampleRate(self.config.sample_rate.unwrap_or(48000));
+        let target_sr = cpal::SampleRate(self.config.sample_rate);
 
         // 1. Hunt for the configuration with the lowest minimum buffer size
         let supported_config = output_device

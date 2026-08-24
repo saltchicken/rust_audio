@@ -5,7 +5,7 @@ use std::fs;
 pub struct MixerConfig {
     pub active_global_preset: Option<String>,
     pub master_volume: Option<f32>,
-    pub sample_rate: Option<u32>,
+    pub sample_rate: u32, // Changed from Option<u32>
     pub enable_live_input: bool,
     pub latency_ms: f32,
     pub capacity_seconds: f32,
@@ -19,7 +19,7 @@ impl Default for MixerConfig {
         Self {
             active_global_preset: None,
             master_volume: Some(1.0),
-            sample_rate: None,
+            sample_rate: 48000,
             enable_live_input: false,
             latency_ms: 2.0,
             capacity_seconds: 0.5,
