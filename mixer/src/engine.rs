@@ -42,17 +42,33 @@ impl AudioEngine {
 
         println!("✅ Bound to Output: {}\r", output_device.name()?);
 
-        let supported_output_config = output_device.default_output_config()?;
-        let mut output_stream_config: cpal::StreamConfig = supported_output_config.clone().into();
+        let target_sr = cpal::SampleRate(self.config.sample_rate.unwrap_or(48000));
 
-        if let Some(sr) = self.config.sample_rate {
-            output_stream_config.sample_rate = cpal::SampleRate(sr);
-        }
+        // 1. Hunt for the configuration with the lowest minimum buffer size
+        let supported_config = output_device
+            .supported_output_configs()?
+            .filter(|c| c.min_sample_rate() <= target_sr && c.max_sample_rate() >= target_sr)
+            .min_by_key(|c| match c.buffer_size() {
+                cpal::SupportedBufferSize::Range { min, .. } => *min,
+                cpal::SupportedBufferSize::Unknown => u32::MAX,
+            })
+            .map(|c| c.with_sample_rate(target_sr)) // Map to SupportedStreamConfig first
+            .unwrap_or_else(|| {
+                output_device
+                    .default_output_config()
+                    .expect("No default output config available")
+            });
 
-        if let cpal::SupportedBufferSize::Range { min, max: _ } =
-            supported_output_config.buffer_size()
-        {
-            output_stream_config.buffer_size = cpal::BufferSize::Fixed((*min).max(64));
+        let mut output_stream_config: cpal::StreamConfig = supported_config.clone().into();
+
+        // 2. Aggressively force the absolute minimum buffer size
+        if let cpal::SupportedBufferSize::Range { min, max } = supported_config.buffer_size() {
+            // Push as low as the hardware allows, bounded by 64 frames to prevent immediate underruns
+            let desired = (*min).max(64).min(*max);
+            output_stream_config.buffer_size = cpal::BufferSize::Fixed(desired);
+            println!("⚡ Requested Output Buffer Size: {} frames\r", desired);
+        } else {
+            println!("⚠️ Hardware forced unknown output buffer size\r");
         }
 
         Ok((output_device, output_stream_config))
@@ -93,14 +109,31 @@ impl AudioEngine {
 
             println!("✅ Bound to Input:  {}\r", input_device.name()?);
 
-            let supported_input_config = input_device.default_input_config()?;
-            let mut input_stream_config: cpal::StreamConfig = supported_input_config.clone().into();
-            input_stream_config.sample_rate = cpal::SampleRate(sample_rate);
+            let target_sr = cpal::SampleRate(sample_rate);
 
-            if let cpal::SupportedBufferSize::Range { min, max: _ } =
-                supported_input_config.buffer_size()
-            {
-                input_stream_config.buffer_size = cpal::BufferSize::Fixed((*min).max(64));
+            // Apply the same aggressive buffer sizing strategy to the input stream
+            let supported_input_config = input_device
+                .supported_input_configs()?
+                .filter(|c| c.min_sample_rate() <= target_sr && c.max_sample_rate() >= target_sr)
+                .min_by_key(|c| match c.buffer_size() {
+                    cpal::SupportedBufferSize::Range { min, .. } => *min,
+                    cpal::SupportedBufferSize::Unknown => u32::MAX,
+                })
+                .map(|c| c.with_sample_rate(target_sr)) // Map to SupportedStreamConfig first
+                .unwrap_or_else(|| {
+                    input_device
+                        .default_input_config()
+                        .expect("No default input config available")
+                });
+
+            let mut input_stream_config: cpal::StreamConfig = supported_input_config.clone().into();
+
+            if let cpal::SupportedBufferSize::Range { min, max } = supported_input_config.buffer_size() {
+                let desired = (*min).max(64).min(*max);
+                input_stream_config.buffer_size = cpal::BufferSize::Fixed(desired);
+                println!("⚡ Requested Input Buffer Size: {} frames\r", desired);
+            } else {
+                println!("⚠️ Hardware forced unknown input buffer size\r");
             }
 
             let latency_frames =
