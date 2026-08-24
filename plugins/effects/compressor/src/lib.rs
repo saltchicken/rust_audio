@@ -1,6 +1,6 @@
 use clack_plugin::prelude::*;
-use serde::Deserialize;
 use plugin_core::{export_clap_plugin, load_plugin_config};
+use serde::Deserialize;
 
 // --- Configuration Structs ---
 
@@ -45,7 +45,8 @@ impl CompressorChannel {
         // 2. Calculate target gain reduction in dB
         let mut target_gain_reduction_db = 0.0;
         if input_db > config.threshold_db {
-            target_gain_reduction_db = config.threshold_db - input_db + ((input_db - config.threshold_db) / config.ratio);
+            target_gain_reduction_db =
+                config.threshold_db - input_db + ((input_db - config.threshold_db) / config.ratio);
         }
 
         // 3. Smooth the gain reduction with Attack/Release envelope
@@ -55,10 +56,12 @@ impl CompressorChannel {
 
         if target_gain_reduction_db < self.envelope {
             // Signal is getting louder -> compressing more -> use Attack
-            self.envelope = target_gain_reduction_db + attack_coef * (self.envelope - target_gain_reduction_db);
+            self.envelope =
+                target_gain_reduction_db + attack_coef * (self.envelope - target_gain_reduction_db);
         } else {
             // Signal is getting quieter -> compressing less -> use Release
-            self.envelope = target_gain_reduction_db + release_coef * (self.envelope - target_gain_reduction_db);
+            self.envelope = target_gain_reduction_db
+                + release_coef * (self.envelope - target_gain_reduction_db);
         }
 
         // 4. Apply makeup gain and convert back to linear multiplier
@@ -83,9 +86,9 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCompressorPluginAudioProcessor {
         _shared: &'a (),
         audio_config: PluginAudioConfiguration,
     ) -> Result<Self, PluginError> {
-        Ok(Self { 
+        Ok(Self {
             channels: vec![CompressorChannel::new(), CompressorChannel::new()],
-            sample_rate: audio_config.sample_rate as f32
+            sample_rate: audio_config.sample_rate as f32,
         })
     }
 
@@ -114,8 +117,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCompressorPluginAudioProcessor {
 }
 
 export_clap_plugin!(
-    MyCompressorPlugin, 
-    MyCompressorPluginAudioProcessor, 
-    "com.example.rust-mixer-compressor", 
+    MyCompressorPlugin,
+    MyCompressorPluginAudioProcessor,
+    "com.example.rust-mixer-compressor",
     "Rust Mixer Compressor"
 );

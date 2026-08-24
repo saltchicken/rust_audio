@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::time::Duration;
 
-use clack_host::prelude::*;
-use clack_host::events::event_types::NoteOnEvent;
 use clack_host::events::event_types::NoteOffEvent;
+use clack_host::events::event_types::NoteOnEvent;
+use clack_host::prelude::*;
 
 use crossterm::event::{poll, read, Event, KeyCode, KeyModifiers};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
@@ -87,9 +87,12 @@ fn rotate_preset(forward: bool) -> anyhow::Result<()> {
             return Ok(());
         }
 
-        let current = parsed.get("active_global_preset").and_then(|v| v.as_str()).unwrap_or("");
+        let current = parsed
+            .get("active_global_preset")
+            .and_then(|v| v.as_str())
+            .unwrap_or("");
         let current_idx = preset_names.iter().position(|n| n == current).unwrap_or(0);
-        
+
         let next_idx = if forward {
             (current_idx + 1) % preset_names.len()
         } else {
@@ -98,7 +101,7 @@ fn rotate_preset(forward: bool) -> anyhow::Result<()> {
 
         let next_preset = &preset_names[next_idx];
         let mut new_config_str = String::new();
-        
+
         for line in config_str.lines() {
             if line.trim_start().starts_with("active_global_preset") {
                 new_config_str.push_str(&format!("active_global_preset = \"{}\"", next_preset));
@@ -131,11 +134,20 @@ impl AudioEngine {
 
     fn setup_output_device(&self) -> anyhow::Result<(cpal::Device, cpal::StreamConfig)> {
         let output_device = if self.config.output_device.to_lowercase() == "default" {
-            self.host.default_output_device().expect("No default output device found")
+            self.host
+                .default_output_device()
+                .expect("No default output device found")
         } else {
-            self.host.output_devices()?
-                .find(|d| d.name().map(|n| n == self.config.output_device).unwrap_or(false))
-                .unwrap_or_else(|| panic!("Output device '{}' not found.", self.config.output_device))
+            self.host
+                .output_devices()?
+                .find(|d| {
+                    d.name()
+                        .map(|n| n == self.config.output_device)
+                        .unwrap_or(false)
+                })
+                .unwrap_or_else(|| {
+                    panic!("Output device '{}' not found.", self.config.output_device)
+                })
         };
 
         println!("✅ Bound to Output: {}\r", output_device.name()?);
@@ -147,7 +159,9 @@ impl AudioEngine {
             output_stream_config.sample_rate = cpal::SampleRate(sr);
         }
 
-        if let cpal::SupportedBufferSize::Range { min, max: _ } = supported_output_config.buffer_size() {
+        if let cpal::SupportedBufferSize::Range { min, max: _ } =
+            supported_output_config.buffer_size()
+        {
             output_stream_config.buffer_size = cpal::BufferSize::Fixed((*min).max(64));
         }
 
@@ -163,28 +177,40 @@ impl AudioEngine {
         let midi_rb = HeapRb::<MidiMsg>::new(256);
         let (mut midi_tx, mut midi_rx) = midi_rb.split();
 
-        let mut midi_in = MidiInput::new("Rust Synth Host").expect("Failed to initialize MIDI input");
+        let mut midi_in =
+            MidiInput::new("Rust Synth Host").expect("Failed to initialize MIDI input");
         midi_in.ignore(Ignore::None);
 
         let midi_ports = midi_in.ports();
         let _midi_connection = if let Some(port) = midi_ports.first() {
-            let port_name = midi_in.port_name(port).unwrap_or_else(|_| "Unknown USB Device".into());
+            let port_name = midi_in
+                .port_name(port)
+                .unwrap_or_else(|_| "Unknown USB Device".into());
             println!("✅ Bound to MIDI: {}\r", port_name);
 
-            let conn = midi_in.connect(port, "midir-read-input", move |_, message, _| {
-                if message.len() >= 3 {
-                    let status_nibble = message[0] & 0xF0;
-                    let note = message[1];
-                    let velocity = message[2];
-                    let normalized_vel = velocity as f32 / 127.0;
+            let conn = midi_in
+                .connect(
+                    port,
+                    "midir-read-input",
+                    move |_, message, _| {
+                        if message.len() >= 3 {
+                            let status_nibble = message[0] & 0xF0;
+                            let note = message[1];
+                            let velocity = message[2];
+                            let normalized_vel = velocity as f32 / 127.0;
 
-                    if status_nibble == 0x90 && velocity > 0 {
-                        let _ = midi_tx.push(MidiMsg::NoteOn(note, normalized_vel));
-                    } else if status_nibble == 0x80 || (status_nibble == 0x90 && velocity == 0) {
-                        let _ = midi_tx.push(MidiMsg::NoteOff(note));
-                    }
-                }
-            }, ()).expect("Failed to connect to MIDI port");
+                            if status_nibble == 0x90 && velocity > 0 {
+                                let _ = midi_tx.push(MidiMsg::NoteOn(note, normalized_vel));
+                            } else if status_nibble == 0x80
+                                || (status_nibble == 0x90 && velocity == 0)
+                            {
+                                let _ = midi_tx.push(MidiMsg::NoteOff(note));
+                            }
+                        }
+                    },
+                    (),
+                )
+                .expect("Failed to connect to MIDI port");
             Some(conn)
         } else {
             println!("⚠️ No MIDI input ports found. Plug in a USB keyboard and restart.\r");
@@ -197,10 +223,17 @@ impl AudioEngine {
 
         if self.config.enable_live_input {
             let input_device = if self.config.input_device.to_lowercase() == "default" {
-                self.host.default_input_device().expect("No default input device found")
+                self.host
+                    .default_input_device()
+                    .expect("No default input device found")
             } else {
-                self.host.input_devices()?
-                    .find(|d| d.name().map(|n| n == self.config.input_device).unwrap_or(false))
+                self.host
+                    .input_devices()?
+                    .find(|d| {
+                        d.name()
+                            .map(|n| n == self.config.input_device)
+                            .unwrap_or(false)
+                    })
                     .unwrap_or_else(|| panic!("Input device not found"))
             };
 
@@ -209,13 +242,18 @@ impl AudioEngine {
             let supported_input_config = input_device.default_input_config()?;
             let mut input_stream_config: cpal::StreamConfig = supported_input_config.clone().into();
             input_stream_config.sample_rate = cpal::SampleRate(sample_rate);
-            
-            if let cpal::SupportedBufferSize::Range { min, max: _ } = supported_input_config.buffer_size() {
+
+            if let cpal::SupportedBufferSize::Range { min, max: _ } =
+                supported_input_config.buffer_size()
+            {
                 input_stream_config.buffer_size = cpal::BufferSize::Fixed((*min).max(64));
             }
 
-            let latency_frames = (self.config.latency_ms / 1_000.0) * input_stream_config.sample_rate.0 as f32;
-            let ring_capacity = (self.config.capacity_seconds * input_stream_config.sample_rate.0 as f32) as usize * channels;
+            let latency_frames =
+                (self.config.latency_ms / 1_000.0) * input_stream_config.sample_rate.0 as f32;
+            let ring_capacity =
+                (self.config.capacity_seconds * input_stream_config.sample_rate.0 as f32) as usize
+                    * channels;
 
             let ring = HeapRb::new(ring_capacity);
             let (mut producer, consumer) = ring.split();
@@ -226,18 +264,25 @@ impl AudioEngine {
 
             let input_stream = input_device.build_input_stream(
                 &input_stream_config,
-                move |data: &[f32], _: &_| { let _ = producer.push_slice(data); },
+                move |data: &[f32], _: &_| {
+                    let _ = producer.push_slice(data);
+                },
                 |err| eprintln!("Input stream error: {}\r", err),
                 None,
             )?;
-            
+
             input_stream.play()?;
             _input_stream_guard = Some(input_stream);
         } else {
             println!("✅ Live input disabled (Generator Mode)\r");
         }
 
-        let host_info = HostInfo::new("Rust Synth Host", "My Company", "https://example.com", "0.1.0")?;
+        let host_info = HostInfo::new(
+            "Rust Synth Host",
+            "My Company",
+            "https://example.com",
+            "0.1.0",
+        )?;
         let max_frames = 65536;
         let audio_config = PluginAudioConfiguration {
             sample_rate: sample_rate as f64,
@@ -254,14 +299,22 @@ impl AudioEngine {
             println!("✅ Loading CLAP from: {}\r", plugin_path);
             let entry = unsafe { PluginEntry::load(plugin_path) }?;
             let factory = entry.get_plugin_factory().expect("No plugin factory found");
-            let descriptor = factory.plugin_descriptors().next().expect("No plugins found in CLAP");
-            
+            let descriptor = factory
+                .plugin_descriptors()
+                .next()
+                .expect("No plugins found in CLAP");
+
             let mut plugin_instance = PluginInstance::<MixerHost>::new(
-                |_| (), |_| (), &entry, descriptor.id().unwrap(), &host_info
+                |_| (),
+                |_| (),
+                &entry,
+                descriptor.id().unwrap(),
+                &host_info,
             )?;
 
             let stopped_processor = plugin_instance.activate(|_, _| (), audio_config)?;
-            let audio_processor = stopped_processor.start_processing()
+            let audio_processor = stopped_processor
+                .start_processing()
                 .map_err(|e| anyhow::anyhow!("Failed to start CLAP processor: {:?}", e))?;
 
             plugin_instances.push(plugin_instance);
@@ -304,11 +357,16 @@ impl AudioEngine {
                 while let Some(msg) = midi_rx.pop() {
                     match msg {
                         MidiMsg::NoteOn(note, velocity) => {
-                            let event = NoteOnEvent::new(0, Pckn::new(0u16, 0u16, note, 0u32), velocity as f64);
+                            let event = NoteOnEvent::new(
+                                0,
+                                Pckn::new(0u16, 0u16, note, 0u32),
+                                velocity as f64,
+                            );
                             input_events_buffer.push(&event);
                         }
                         MidiMsg::NoteOff(note) => {
-                            let event = NoteOffEvent::new(0, Pckn::new(0u16, 0u16, note, 0u32), 0.0);
+                            let event =
+                                NoteOffEvent::new(0, Pckn::new(0u16, 0u16, note, 0u32), 0.0);
                             input_events_buffer.push(&event);
                         }
                     }
@@ -337,15 +395,17 @@ impl AudioEngine {
                     let clap_input = input_ports.with_input_buffers([AudioPortBuffer {
                         latency: 0,
                         channels: AudioPortBufferType::f32_input_only(
-                            in_buf.iter_mut().map(|c| InputChannel::constant(&mut c[..frames]))
-                        )
+                            in_buf
+                                .iter_mut()
+                                .map(|c| InputChannel::constant(&mut c[..frames])),
+                        ),
                     }]);
 
                     let mut clap_output = output_ports.with_output_buffers([AudioPortBuffer {
                         latency: 0,
                         channels: AudioPortBufferType::f32_output_only(
-                            out_buf.iter_mut().map(|c| &mut c[..frames])
-                        )
+                            out_buf.iter_mut().map(|c| &mut c[..frames]),
+                        ),
                     }]);
 
                     let input_events = InputEvents::from_buffer(&input_events_buffer);
@@ -377,7 +437,7 @@ impl AudioEngine {
 
         println!("\r\n🚀 Engine running at {}Hz!\r", sample_rate);
         println!("👉 Press 'p'/'o' to rotate presets, 'r' to reload config, 'q' or Esc to quit.\r");
-        
+
         output_stream.play()?;
 
         loop {
@@ -386,11 +446,11 @@ impl AudioEngine {
                     match event.code {
                         KeyCode::Char('p') | KeyCode::Char('P') => {
                             let _ = rotate_preset(true);
-                            return Ok(true); 
+                            return Ok(true);
                         }
                         KeyCode::Char('o') | KeyCode::Char('O') => {
                             let _ = rotate_preset(false);
-                            return Ok(true); 
+                            return Ok(true);
                         }
                         KeyCode::Char('r') | KeyCode::Char('R') => {
                             println!("\r\n🔄 Reloading audio engine and config...\r");

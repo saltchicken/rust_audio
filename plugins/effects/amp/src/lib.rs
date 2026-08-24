@@ -1,6 +1,6 @@
 use clack_plugin::prelude::*;
-use serde::Deserialize;
 use plugin_core::{export_clap_plugin, load_plugin_config};
+use serde::Deserialize;
 
 // --- Configuration Structs ---
 
@@ -36,14 +36,14 @@ impl Amplifier {
     fn process(&mut self, input: f32, drive: f32, tone: f32, level: f32) -> f32 {
         // 1. Input Gain (Drive)
         let pre_gain = input * drive.max(0.1);
-        
+
         // 2. Non-linear saturation (Waveshaping)
         // tanh provides classic symmetrical soft-clipping (analog tube/tape style)
         let saturated = pre_gain.tanh();
 
         // 3. Simple 1-pole Low-Pass Filter for the Tone knob
         // Map tone (0.0 - 1.0) to a smoothing factor (alpha)
-        let alpha = 0.05 + (tone * 0.95); 
+        let alpha = 0.05 + (tone * 0.95);
         self.tone_state = self.tone_state + alpha * (saturated - self.tone_state);
 
         // 4. Output Volume
@@ -64,8 +64,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyAmpPluginAudioProcessor {
         _shared: &'a (),
         _audio_config: PluginAudioConfiguration,
     ) -> Result<Self, PluginError> {
-        Ok(Self { 
-            channels: vec![Amplifier::new(), Amplifier::new()] 
+        Ok(Self {
+            channels: vec![Amplifier::new(), Amplifier::new()],
         })
     }
 
@@ -94,8 +94,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyAmpPluginAudioProcessor {
 }
 
 export_clap_plugin!(
-    MyAmpPlugin, 
-    MyAmpPluginAudioProcessor, 
-    "com.example.rust-mixer-amp", 
+    MyAmpPlugin,
+    MyAmpPluginAudioProcessor,
+    "com.example.rust-mixer-amp",
     "Rust Mixer Amp Sim"
 );

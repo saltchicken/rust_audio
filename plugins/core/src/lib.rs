@@ -9,10 +9,13 @@ where
     T: DeserializeOwned + Default + Clone,
 {
     let config_str = fs::read_to_string("config.toml").unwrap_or_default();
-    
+
     // Parse as an untyped toml Value to navigate dynamically
     if let Ok(global_cfg) = config_str.parse::<toml::Value>() {
-        if let Some(global_name) = global_cfg.get("active_global_preset").and_then(|v| v.as_str()) {
+        if let Some(global_name) = global_cfg
+            .get("active_global_preset")
+            .and_then(|v| v.as_str())
+        {
             if !global_name.is_empty() {
                 if let Some(preset_data) = global_cfg
                     .get("global_presets")
@@ -28,7 +31,10 @@ where
         }
     }
 
-    println!("Warning: Global preset for '{}' not found or missing section, using default.", plugin_name);
+    println!(
+        "Warning: Global preset for '{}' not found or missing section, using default.",
+        plugin_name
+    );
     T::default()
 }
 
@@ -39,22 +45,24 @@ pub fn process_f32_channels(
     mut process_channel: impl FnMut(usize, &[f32], &mut [f32]),
 ) {
     for mut port_pair in audio.port_pairs() {
-        let Some(channel_pairs) = port_pair.channels().ok().and_then(|c| c.into_f32()) else { continue; };
-        
+        let Some(channel_pairs) = port_pair.channels().ok().and_then(|c| c.into_f32()) else {
+            continue;
+        };
+
         for (ch_idx, channel_pair) in channel_pairs.into_iter().enumerate() {
             match channel_pair {
                 ChannelPair::InputOnly(_) => {}
                 ChannelPair::OutputOnly(buf) => {
                     buf.fill(0.0);
-                    process_channel(ch_idx, &[], buf); 
+                    process_channel(ch_idx, &[], buf);
                 }
                 ChannelPair::InputOutput(input, output) => {
                     process_channel(ch_idx, input, output);
                 }
                 ChannelPair::InPlace(buf) => {
-                    // Clone input to a temporary slice so DSP can safely read original 
+                    // Clone input to a temporary slice so DSP can safely read original
                     // samples while writing to the mutable output buffer.
-                    let input = buf.to_vec(); 
+                    let input = buf.to_vec();
                     process_channel(ch_idx, &input, buf);
                 }
             }

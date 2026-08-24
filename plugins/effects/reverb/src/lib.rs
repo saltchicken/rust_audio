@@ -1,6 +1,6 @@
 use clack_plugin::prelude::*;
-use serde::Deserialize;
 use plugin_core::{export_clap_plugin, load_plugin_config};
+use serde::Deserialize;
 
 // --- Configuration Structs ---
 
@@ -48,11 +48,11 @@ impl DelayLine {
             index: 0,
         }
     }
-    
+
     fn read(&self) -> f32 {
         self.buffer[self.index]
     }
-    
+
     fn write_and_step(&mut self, value: f32) {
         self.buffer[self.index] = value;
         self.index = (self.index + 1) % self.buffer.len();
@@ -75,11 +75,13 @@ impl CombFilter {
             filter_store: 0.0,
         }
     }
-    
+
     fn process(&mut self, input: f32) -> f32 {
         let output = self.delay.read();
-        self.filter_store = (output * (1.0 - self.dampening)) + (self.filter_store * self.dampening);
-        self.delay.write_and_step(input + self.filter_store * self.feedback);
+        self.filter_store =
+            (output * (1.0 - self.dampening)) + (self.filter_store * self.dampening);
+        self.delay
+            .write_and_step(input + self.filter_store * self.feedback);
         output
     }
 }
@@ -96,7 +98,7 @@ impl AllPassFilter {
             feedback,
         }
     }
-    
+
     fn process(&mut self, input: f32) -> f32 {
         let delayed = self.delay.read();
         let output = -input * self.feedback + delayed;
@@ -117,7 +119,7 @@ struct ReverbChannel {
 impl ReverbChannel {
     fn new(sample_rate: f64, stereo_spread: usize, config: &ReverbConfig) -> Self {
         let sr_scale = sample_rate / 44100.0;
-        
+
         let c1 = (config.comb_lengths[0] * sr_scale) as usize + stereo_spread;
         let c2 = (config.comb_lengths[1] * sr_scale) as usize + stereo_spread;
         let c3 = (config.comb_lengths[2] * sr_scale) as usize + stereo_spread;
@@ -144,15 +146,15 @@ impl ReverbChannel {
 
     fn process(&mut self, input: f32) -> f32 {
         let mut out = 0.0;
-        
+
         for comb in &mut self.combs {
             out += comb.process(input);
         }
-        
+
         for allpass in &mut self.allpasses {
             out = allpass.process(out);
         }
-        
+
         (input * (1.0 - self.mix)) + (out * self.mix * self.wet_scale)
     }
 }
@@ -172,12 +174,12 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         let config = load_plugin_config::<ReverbConfig>("reverb");
-        
+
         let channels = vec![
             ReverbChannel::new(sr, config.left_spread, &config),
             ReverbChannel::new(sr, config.right_spread, &config),
         ];
-        
+
         Ok(Self { channels })
     }
 
@@ -187,7 +189,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
         mut audio: Audio,
         _events: Events,
     ) -> Result<ProcessStatus, PluginError> {
-        
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {
             let reverb = if ch_idx < self.channels.len() {
                 &mut self.channels[ch_idx]
@@ -199,14 +200,14 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
                 *o = reverb.process(*i);
             }
         });
-        
+
         Ok(ProcessStatus::Continue)
     }
 }
 
 export_clap_plugin!(
-    MyReverbPlugin, 
-    MyReverbPluginAudioProcessor, 
-    "com.example.rust-mixer-reverb", 
+    MyReverbPlugin,
+    MyReverbPluginAudioProcessor,
+    "com.example.rust-mixer-reverb",
     "Rust Mixer Configurable Reverb"
 );

@@ -1,24 +1,24 @@
 use clack_plugin::prelude::*;
+use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
 use std::f32::consts::PI;
-use plugin_core::{export_clap_plugin, load_plugin_config};
 
 // --- Configuration Structs ---
 
 #[derive(Deserialize, Clone)]
 #[serde(default)]
 struct VibratoConfig {
-    rate_hz: f32,    // Speed of the wobble
-    depth_ms: f32,   // Intensity of the pitch shift
-    mix: f32,        // 1.0 = Pure Vibrato, 0.5 = Chorus
+    rate_hz: f32,  // Speed of the wobble
+    depth_ms: f32, // Intensity of the pitch shift
+    mix: f32,      // 1.0 = Pure Vibrato, 0.5 = Chorus
 }
 
 impl Default for VibratoConfig {
     fn default() -> Self {
         Self {
-            rate_hz: 3.5, 
-            depth_ms: 2.0, 
-            mix: 1.0, 
+            rate_hz: 3.5,
+            depth_ms: 2.0,
+            mix: 1.0,
         }
     }
 }
@@ -55,7 +55,7 @@ impl ModulatedDelay {
         }
 
         // 3. Calculate current delay time (Sine wave modulation)
-        let lfo_val = self.lfo_phase.sin(); 
+        let lfo_val = self.lfo_phase.sin();
         let current_delay_ms = self.base_delay_ms + (lfo_val * depth);
         let delay_samples = (current_delay_ms / 1000.0) * sample_rate;
 
@@ -95,15 +95,12 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyVibratoPluginAudioProcessor {
         audio_config: PluginAudioConfiguration,
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
-        
-        let channels = vec![
-            ModulatedDelay::new(sr),
-            ModulatedDelay::new(sr),
-        ];
-        
-        Ok(Self { 
+
+        let channels = vec![ModulatedDelay::new(sr), ModulatedDelay::new(sr)];
+
+        Ok(Self {
             channels,
-            sample_rate: sr as f32 
+            sample_rate: sr as f32,
         })
     }
 
@@ -124,17 +121,23 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyVibratoPluginAudioProcessor {
             };
 
             for (i, o) in input.iter().zip(output.iter_mut()) {
-                *o = dsp.process(*i, self.sample_rate, config.rate_hz, config.depth_ms, config.mix);
+                *o = dsp.process(
+                    *i,
+                    self.sample_rate,
+                    config.rate_hz,
+                    config.depth_ms,
+                    config.mix,
+                );
             }
         });
-        
+
         Ok(ProcessStatus::Continue)
     }
 }
 
 export_clap_plugin!(
-    MyVibratoPlugin, 
-    MyVibratoPluginAudioProcessor, 
-    "com.example.rust-mixer-vibrato", 
+    MyVibratoPlugin,
+    MyVibratoPluginAudioProcessor,
+    "com.example.rust-mixer-vibrato",
     "Rust Mixer Vibrato"
 );

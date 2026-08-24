@@ -1,6 +1,6 @@
 use clack_plugin::prelude::*;
-use serde::Deserialize;
 use plugin_core::{export_clap_plugin, load_plugin_config};
+use serde::Deserialize;
 
 // --- Configuration Structs ---
 
@@ -36,7 +36,7 @@ struct EchoDelay {
 impl EchoDelay {
     fn new(sample_rate: f64, delay_ms: f64, feedback: f32, mix: f32) -> Self {
         let delay_samples = ((delay_ms / 1000.0) * sample_rate) as usize;
-        
+
         Self {
             buffer: vec![0.0; delay_samples.max(1)],
             index: 0,
@@ -68,12 +68,12 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         let config = load_plugin_config::<DelayConfig>("delay");
-        
+
         let channels = vec![
             EchoDelay::new(sr, config.left_delay_ms, config.feedback, config.mix),
             EchoDelay::new(sr, config.right_delay_ms, config.feedback, config.mix),
         ];
-        
+
         Ok(Self { channels })
     }
 
@@ -83,7 +83,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
         mut audio: Audio,
         _events: Events,
     ) -> Result<ProcessStatus, PluginError> {
-        
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {
             let delay = if ch_idx < self.channels.len() {
                 &mut self.channels[ch_idx]
@@ -95,14 +94,14 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
                 *o = delay.process(*i);
             }
         });
-        
+
         Ok(ProcessStatus::Continue)
     }
 }
 
 export_clap_plugin!(
-    MyDelayPlugin, 
-    MyDelayPluginAudioProcessor, 
-    "com.example.rust-mixer-delay", 
+    MyDelayPlugin,
+    MyDelayPluginAudioProcessor,
+    "com.example.rust-mixer-delay",
     "Rust Mixer Configurable Delay"
 );

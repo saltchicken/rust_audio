@@ -46,21 +46,25 @@ impl MicroEnvelope {
     fn trigger(&mut self, sample_rate: f32, attack_ms: f32, release_ms: f32) {
         self.attack_inc = 1.0 / ((attack_ms.max(0.1) / 1000.0) * sample_rate);
         self.release_inc = 1.0 / ((release_ms.max(0.1) / 1000.0) * sample_rate);
-        self.state = 1; 
+        self.state = 1;
     }
-    
-    fn release(&mut self) { self.state = 3; }
+
+    fn release(&mut self) {
+        self.state = 3;
+    }
 
     fn process(&mut self) -> f32 {
         match self.state {
-            1 => { // Attack
+            1 => {
+                // Attack
                 self.level += self.attack_inc;
                 if self.level >= 1.0 {
                     self.level = 1.0;
                     self.state = 2;
                 }
             }
-            3 => { // Release
+            3 => {
+                // Release
                 self.level -= self.release_inc;
                 if self.level <= 0.0 {
                     self.level = 0.0;
@@ -100,7 +104,8 @@ impl Voice {
         self.active_note = Some(note);
         self.freq = 440.0 * 2.0_f32.powf((note as f32 - 69.0) / 12.0);
         self.velocity = velocity;
-        self.env.trigger(sample_rate, config.attack_ms, config.release_ms);
+        self.env
+            .trigger(sample_rate, config.attack_ms, config.release_ms);
         self.pitch_gain = (440.0 / self.freq).sqrt().clamp(0.4, 3.0);
     }
 
@@ -148,8 +153,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             voices.push(Voice::new());
         }
 
-        Ok(Self { 
-            voices, 
+        Ok(Self {
+            voices,
             sample_rate: sr,
             block_buffer: vec![0.0; max_frames],
             config,
@@ -162,7 +167,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
         mut audio: Audio,
         events: Events,
     ) -> Result<ProcessStatus, PluginError> {
-        
         let frames = audio.frames_count() as usize;
 
         if self.block_buffer.len() < frames {
@@ -174,7 +178,11 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
                 if let clack_plugin::events::Match::Specific(k) = note_on.key() {
                     let key = k as i16;
                     let vel = note_on.velocity() as f32;
-                    let voice_idx = self.voices.iter().position(|v| v.active_note.is_none()).unwrap_or(0);
+                    let voice_idx = self
+                        .voices
+                        .iter()
+                        .position(|v| v.active_note.is_none())
+                        .unwrap_or(0);
                     self.voices[voice_idx].trigger(key, vel, &self.config, self.sample_rate);
                 }
             } else if let Some(note_off) = event.as_event::<NoteOffEvent>() {
@@ -183,7 +191,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
                         let key = k as i16;
                         for voice in self.voices.iter_mut() {
                             if voice.active_note == Some(key) {
-                                voice.release(); 
+                                voice.release();
                             }
                         }
                     }
@@ -219,14 +227,14 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
                 *sample = self.block_buffer[i];
             }
         });
-        
+
         Ok(ProcessStatus::Continue)
     }
 }
 
 export_clap_plugin!(
-    MySynthPlugin, 
-    MySynthProcessor, 
-    "com.example.rust-mixer-synth", 
+    MySynthPlugin,
+    MySynthProcessor,
+    "com.example.rust-mixer-synth",
     "Smooth Sine Synth"
 );
