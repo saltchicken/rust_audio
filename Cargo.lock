@@ -219,6 +219,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "compressor_clap_plugin"
+version = "0.1.0"
+dependencies = [
+ "clack-plugin",
+ "plugin_core",
+ "serde",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
