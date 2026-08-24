@@ -6,11 +6,6 @@ use std::f32::consts::PI;
 
 // --- 1. Configuration ---
 
-#[derive(Deserialize, Default)]
-struct RootConfig {
-    synth: Option<SynthConfig>,
-}
-
 #[derive(Deserialize, Clone)]
 #[serde(default)]
 struct SynthConfig {
@@ -146,8 +141,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate as f32;
         let max_frames = audio_config.max_frames_count as usize;
-        
-        let config = load_plugin_config::<RootConfig, _, _>(|root| root.synth.as_ref());
+        let config = load_plugin_config::<SynthConfig>("synth");
 
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES {
@@ -214,28 +208,17 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             }
         }
 
-        // Apply config volume instead of hardcoded 0.15
         for i in 0..frames {
             let out = self.block_buffer[i] * self.config.volume;
             self.block_buffer[i] = out.tanh();
         }
 
-        for mut port_pair in audio.port_pairs() {
-            let Some(channel_pairs) = port_pair.channels()?.into_f32() else { continue; };
-            
-            for channel_pair in channel_pairs {
-                let buffer = match channel_pair {
-                    ChannelPair::OutputOnly(buf) => buf,
-                    ChannelPair::InputOutput(_, output) => output,
-                    ChannelPair::InPlace(buf) => buf,
-                    _ => continue,
-                };
-
-                for (i, sample) in buffer.iter_mut().enumerate().take(frames) {
-                    *sample = self.block_buffer[i];
-                }
+        // Apply generated block buffer directly to the active channels
+        plugin_core::process_f32_channels(&mut audio, |_ch_idx, _input, output| {
+            for (i, sample) in output.iter_mut().enumerate().take(frames) {
+                *sample = self.block_buffer[i];
             }
-        }
+        });
         
         Ok(ProcessStatus::Continue)
     }

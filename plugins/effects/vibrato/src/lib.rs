@@ -5,11 +5,6 @@ use plugin_core::{export_clap_plugin, load_plugin_config};
 
 // --- Configuration Structs ---
 
-#[derive(Deserialize, Default)]
-struct RootConfig {
-    vibrato: Option<VibratoConfig>,
-}
-
 #[derive(Deserialize, Clone)]
 #[serde(default)]
 struct VibratoConfig {
@@ -119,34 +114,19 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyVibratoPluginAudioProcessor {
         _events: Events,
     ) -> Result<ProcessStatus, PluginError> {
         // Load config per block to allow hot-reloading
-        let config = load_plugin_config::<RootConfig, _, _>(|root| root.vibrato.as_ref());
+        let config = load_plugin_config::<VibratoConfig>("vibrato");
 
-        for mut port_pair in audio.port_pairs() {
-            let Some(channel_pairs) = port_pair.channels()?.into_f32() else { continue; };
-            
-            for (ch_idx, channel_pair) in channel_pairs.into_iter().enumerate() {
-                let dsp = if ch_idx < self.channels.len() {
-                    &mut self.channels[ch_idx]
-                } else {
-                    &mut self.channels[0]
-                };
+        plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {
+            let dsp = if ch_idx < self.channels.len() {
+                &mut self.channels[ch_idx]
+            } else {
+                &mut self.channels[0]
+            };
 
-                match channel_pair {
-                    ChannelPair::InputOnly(_) => {}
-                    ChannelPair::OutputOnly(buf) => buf.fill(0.0),
-                    ChannelPair::InputOutput(input, output) => {
-                        for (i, o) in input.iter().zip(output.iter_mut()) {
-                            *o = dsp.process(*i, self.sample_rate, config.rate_hz, config.depth_ms, config.mix);
-                        }
-                    }
-                    ChannelPair::InPlace(buf) => {
-                        for sample in buf.iter_mut() {
-                            *sample = dsp.process(*sample, self.sample_rate, config.rate_hz, config.depth_ms, config.mix);
-                        }
-                    }
-                }
+            for (i, o) in input.iter().zip(output.iter_mut()) {
+                *o = dsp.process(*i, self.sample_rate, config.rate_hz, config.depth_ms, config.mix);
             }
-        }
+        });
         
         Ok(ProcessStatus::Continue)
     }

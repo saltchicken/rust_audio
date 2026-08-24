@@ -1,41 +1,68 @@
-use serde::Deserialize;
-use std::collections::HashMap;
+use clack_plugin::prelude::*;
+use serde::de::DeserializeOwned;
 use std::fs;
 
 // --- 1. Global Configuration Extractor ---
 
-#[derive(Deserialize, Default)]
-struct GlobalConfig<R> {
-    active_global_preset: Option<String>,
-    global_presets: Option<HashMap<String, R>>,
-}
-
-pub fn load_plugin_config<R, F, T>(extract_section: F) -> T
+pub fn load_plugin_config<T>(plugin_name: &str) -> T
 where
-    R: for<'a> Deserialize<'a> + Default,
-    F: Fn(&R) -> Option<&T>,
-    T: Clone + Default,
+    T: DeserializeOwned + Default + Clone,
 {
     let config_str = fs::read_to_string("config.toml").unwrap_or_default();
-    let global_cfg: GlobalConfig<R> = toml::from_str(&config_str).unwrap_or_default();
-
-    if let Some(global_name) = &global_cfg.active_global_preset {
-        if !global_name.is_empty() {
-            if let Some(global_presets) = &global_cfg.global_presets {
-                if let Some(preset_root) = global_presets.get(global_name) {
-                    if let Some(config) = extract_section(preset_root) {
-                        return config.clone();
+    
+    // Parse as an untyped toml Value to navigate dynamically
+    if let Ok(global_cfg) = config_str.parse::<toml::Value>() {
+        if let Some(global_name) = global_cfg.get("active_global_preset").and_then(|v| v.as_str()) {
+            if !global_name.is_empty() {
+                if let Some(preset_data) = global_cfg
+                    .get("global_presets")
+                    .and_then(|p| p.get(global_name))
+                    .and_then(|g| g.get(plugin_name))
+                {
+                    // Attempt to deserialize the specific section into the requested struct
+                    if let Ok(config) = preset_data.clone().try_into::<T>() {
+                        return config;
                     }
                 }
             }
-            println!("Warning: Global preset '{}' not found or missing section, using default.", global_name);
         }
     }
 
+    println!("Warning: Global preset for '{}' not found or missing section, using default.", plugin_name);
     T::default()
 }
 
-// --- 2. CLAP Boilerplate Macro ---
+// --- 2. CLAP Audio Processing Abstraction ---
+
+pub fn process_f32_channels(
+    audio: &mut Audio,
+    mut process_channel: impl FnMut(usize, &[f32], &mut [f32]),
+) {
+    for mut port_pair in audio.port_pairs() {
+        let Some(channel_pairs) = port_pair.channels().ok().and_then(|c| c.into_f32()) else { continue; };
+        
+        for (ch_idx, channel_pair) in channel_pairs.into_iter().enumerate() {
+            match channel_pair {
+                ChannelPair::InputOnly(_) => {}
+                ChannelPair::OutputOnly(buf) => {
+                    buf.fill(0.0);
+                    process_channel(ch_idx, &[], buf); 
+                }
+                ChannelPair::InputOutput(input, output) => {
+                    process_channel(ch_idx, input, output);
+                }
+                ChannelPair::InPlace(buf) => {
+                    // Clone input to a temporary slice so DSP can safely read original 
+                    // samples while writing to the mutable output buffer.
+                    let input = buf.to_vec(); 
+                    process_channel(ch_idx, &input, buf);
+                }
+            }
+        }
+    }
+}
+
+// --- 3. CLAP Boilerplate Macro ---
 
 #[macro_export]
 macro_rules! export_clap_plugin {

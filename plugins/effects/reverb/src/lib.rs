@@ -4,11 +4,6 @@ use plugin_core::{export_clap_plugin, load_plugin_config};
 
 // --- Configuration Structs ---
 
-#[derive(Deserialize, Default)]
-struct RootConfig {
-    reverb: Option<ReverbConfig>,
-}
-
 #[derive(Deserialize, Clone)]
 #[serde(default)]
 struct ReverbConfig {
@@ -176,8 +171,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
         audio_config: PluginAudioConfiguration,
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
-        
-        let config = load_plugin_config::<RootConfig, _, _>(|root| root.reverb.as_ref());
+        let config = load_plugin_config::<ReverbConfig>("reverb");
         
         let channels = vec![
             ReverbChannel::new(sr, config.left_spread, &config),
@@ -193,32 +187,18 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
         mut audio: Audio,
         _events: Events,
     ) -> Result<ProcessStatus, PluginError> {
-        for mut port_pair in audio.port_pairs() {
-            let Some(channel_pairs) = port_pair.channels()?.into_f32() else { continue; };
-            
-            for (ch_idx, channel_pair) in channel_pairs.into_iter().enumerate() {
-                let reverb = if ch_idx < self.channels.len() {
-                    &mut self.channels[ch_idx]
-                } else {
-                    &mut self.channels[0]
-                };
+        
+        plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {
+            let reverb = if ch_idx < self.channels.len() {
+                &mut self.channels[ch_idx]
+            } else {
+                &mut self.channels[0]
+            };
 
-                match channel_pair {
-                    ChannelPair::InputOnly(_) => {}
-                    ChannelPair::OutputOnly(buf) => buf.fill(0.0),
-                    ChannelPair::InputOutput(input, output) => {
-                        for (i, o) in input.iter().zip(output.iter_mut()) {
-                            *o = reverb.process(*i);
-                        }
-                    }
-                    ChannelPair::InPlace(buf) => {
-                        for sample in buf.iter_mut() {
-                            *sample = reverb.process(*sample);
-                        }
-                    }
-                }
+            for (i, o) in input.iter().zip(output.iter_mut()) {
+                *o = reverb.process(*i);
             }
-        }
+        });
         
         Ok(ProcessStatus::Continue)
     }

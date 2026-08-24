@@ -4,11 +4,6 @@ use plugin_core::{export_clap_plugin, load_plugin_config};
 
 // --- Configuration Structs ---
 
-#[derive(Deserialize, Default)]
-struct RootConfig {
-    delay: Option<DelayConfig>,
-}
-
 #[derive(Deserialize, Clone)]
 #[serde(default)]
 struct DelayConfig {
@@ -72,8 +67,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
         audio_config: PluginAudioConfiguration,
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
-        
-        let config = load_plugin_config::<RootConfig, _, _>(|root| root.delay.as_ref());
+        let config = load_plugin_config::<DelayConfig>("delay");
         
         let channels = vec![
             EchoDelay::new(sr, config.left_delay_ms, config.feedback, config.mix),
@@ -89,38 +83,23 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
         mut audio: Audio,
         _events: Events,
     ) -> Result<ProcessStatus, PluginError> {
-        for mut port_pair in audio.port_pairs() {
-            let Some(channel_pairs) = port_pair.channels()?.into_f32() else { continue; };
-            
-            for (ch_idx, channel_pair) in channel_pairs.into_iter().enumerate() {
-                let delay = if ch_idx < self.channels.len() {
-                    &mut self.channels[ch_idx]
-                } else {
-                    &mut self.channels[0]
-                };
+        
+        plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {
+            let delay = if ch_idx < self.channels.len() {
+                &mut self.channels[ch_idx]
+            } else {
+                &mut self.channels[0]
+            };
 
-                match channel_pair {
-                    ChannelPair::InputOnly(_) => {}
-                    ChannelPair::OutputOnly(buf) => buf.fill(0.0),
-                    ChannelPair::InputOutput(input, output) => {
-                        for (i, o) in input.iter().zip(output.iter_mut()) {
-                            *o = delay.process(*i);
-                        }
-                    }
-                    ChannelPair::InPlace(buf) => {
-                        for sample in buf.iter_mut() {
-                            *sample = delay.process(*sample);
-                        }
-                    }
-                }
+            for (i, o) in input.iter().zip(output.iter_mut()) {
+                *o = delay.process(*i);
             }
-        }
+        });
         
         Ok(ProcessStatus::Continue)
     }
 }
 
-// Generates `MyDelayPlugin` trait implementations and bindings magically!
 export_clap_plugin!(
     MyDelayPlugin, 
     MyDelayPluginAudioProcessor, 
