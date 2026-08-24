@@ -33,7 +33,8 @@ where
 
                         if status_nibble == 0x90 && velocity > 0 {
                             on_message(MidiMsg::NoteOn(note, normalized_vel));
-                        } else if status_nibble == 0x80 || (status_nibble == 0x90 && velocity == 0) {
+                        } else if status_nibble == 0x80 || (status_nibble == 0x90 && velocity == 0)
+                        {
                             on_message(MidiMsg::NoteOff(note));
                         }
                     }
