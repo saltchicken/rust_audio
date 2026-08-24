@@ -15,6 +15,7 @@ use midir::{Ignore, MidiInput};
 #[derive(Serialize, Deserialize, Debug)]
 struct MixerConfig {
     pub active_global_preset: Option<String>, // Added support
+    pub master_volume: Option<f32>,
     pub sample_rate: Option<u32>,
     pub enable_live_input: bool,
     pub latency_ms: f32,
@@ -28,6 +29,7 @@ impl Default for MixerConfig {
     fn default() -> Self {
         Self {
             active_global_preset: None,
+            master_volume: Some(1.0),
             sample_rate: None,
             enable_live_input: false,
             latency_ms: 2.0,
@@ -272,6 +274,8 @@ fn run_engine() -> anyhow::Result<bool> {
 
     let err_fn = |err| eprintln!("Stream error: {}\r", err);
 
+    let master_volume = app_config.master_volume.unwrap_or(1.0);
+
     let output_stream = output_device.build_output_stream(
         &output_stream_config,
         move |data: &mut [f32], _: &_| {
@@ -310,7 +314,8 @@ fn run_engine() -> anyhow::Result<bool> {
             if audio_processors.is_empty() {
                 for frame in 0..frames {
                     for ch in 0..channels {
-                        data[frame * channels + ch] = intermediate_buffers[0][ch][frame];
+                        let sample = intermediate_buffers[0][ch][frame] * master_volume;
+                        data[frame * channels + ch] = sample.clamp(-1.0, 1.0);
                     }
                 }
                 return;
@@ -358,7 +363,8 @@ fn run_engine() -> anyhow::Result<bool> {
             let final_buf = current_in_buf;
             for frame in 0..frames {
                 for ch in 0..channels {
-                    data[frame * channels + ch] = intermediate_buffers[final_buf][ch][frame];
+                    let sample = intermediate_buffers[final_buf][ch][frame] * master_volume;
+                    data[frame * channels + ch] = sample.clamp(-1.0, 1.0);
                 }
             }
         },
