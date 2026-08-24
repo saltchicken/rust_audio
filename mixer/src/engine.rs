@@ -44,10 +44,10 @@ impl AudioEngine {
 
         let target_sr = cpal::SampleRate(self.config.sample_rate);
 
-        // 1. Hunt for the configuration with the lowest minimum buffer size
+        // 1. Hunt for the configuration with the lowest minimum buffer size and ensure stereo (2 channels)
         let supported_config = output_device
             .supported_output_configs()?
-            .filter(|c| c.min_sample_rate() <= target_sr && c.max_sample_rate() >= target_sr)
+            .filter(|c| c.channels() == 2 && c.min_sample_rate() <= target_sr && c.max_sample_rate() >= target_sr)
             .min_by_key(|c| match c.buffer_size() {
                 cpal::SupportedBufferSize::Range { min, .. } => *min,
                 cpal::SupportedBufferSize::Unknown => u32::MAX,
@@ -111,10 +111,10 @@ impl AudioEngine {
 
             let target_sr = cpal::SampleRate(sample_rate);
 
-            // Apply the same aggressive buffer sizing strategy to the input stream
+            // Apply the same aggressive buffer sizing strategy and stereo requirement to the input stream
             let supported_input_config = input_device
                 .supported_input_configs()?
-                .filter(|c| c.min_sample_rate() <= target_sr && c.max_sample_rate() >= target_sr)
+                .filter(|c| c.channels() == 2 && c.min_sample_rate() <= target_sr && c.max_sample_rate() >= target_sr)
                 .min_by_key(|c| match c.buffer_size() {
                     cpal::SupportedBufferSize::Range { min, .. } => *min,
                     cpal::SupportedBufferSize::Unknown => u32::MAX,
