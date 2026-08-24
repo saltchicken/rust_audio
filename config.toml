@@ -1,5 +1,5 @@
 active_global_preset = "epic"
-master_volume = 2.8
+master_volume = 1.0
 
 sample_rate = 48000
 enable_live_input = false
@@ -7,6 +7,8 @@ latency_ms = 2.0
 capacity_seconds = 1.0
 plugin_chain = [
   "target/release/libsynth_plugin.so",
+  "target/release/libamp_clap_plugin.so",
+  "target/release/libcab_clap_plugin.so",
   "target/release/libvibrato_clap_plugin.so",
   "target/release/libdelay_clap_plugin.so",
   "target/release/libreverb_test_plugin.so"
@@ -18,31 +20,21 @@ output_device = "default"
 # GLOBAL PRESETS
 # ==============================================================================
 
-[global_presets.dreamscape.synth]
-attack_ms = 1200.0
-release_ms = 2500.0
-volume = 0.35
-
-[global_presets.dreamscape.vibrato]
-rate_hz = 1.2
-depth_ms = 4.0
-mix = 1.0 # 100% wet for pure lo-fi tape wobble
-
-[global_presets.dreamscape.delay]
-left_delay_ms = 800.0
-right_delay_ms = 950.0
-feedback = 0.85
-mix = 0.6
-
-[global_presets.dreamscape.reverb]
-comb_lengths = [2000.0, 2100.0, 2200.0, 2300.0]
-mix = 0.8
-wet_scale = 0.35
 
 [global_presets.epic.synth]
 attack_ms = 5.0
 release_ms = 15.0
 volume = 0.15
+
+[global_presets.epic.amp]
+drive = 8.0
+tone = 0.4
+level = 0.3
+
+[global_presets.epic.cab]
+low_cut_hz = 80.0
+high_cut_hz = 5500.0
+resonance = 0.707
 
 [global_presets.epic.vibrato]
 rate_hz = 4.5
