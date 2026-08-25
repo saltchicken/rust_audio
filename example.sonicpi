@@ -7,7 +7,7 @@ use_bpm 60
 # ---------------------------------------------------------
 # DRUM MACHINE (MIDI Channel 10)
 # ---------------------------------------------------------
-live_loop :rust_drums do
+live_loop :drums do
   use_midi_defaults channel: 10
   
   # Each loop natively counts its own bars with 'tick'
@@ -52,7 +52,7 @@ end
 # ---------------------------------------------------------
 # BASS LINE (MIDI Channel 2)
 # ---------------------------------------------------------
-live_loop :rust_clean do
+live_loop :clean do
   use_midi_defaults channel: 2
   
   bar = tick(:bar)
@@ -97,7 +97,7 @@ end
 # ---------------------------------------------------------
 # SYNTH LEAD MELODY (MIDI Channel 1)
 # ---------------------------------------------------------
-live_loop :rust_lead do
+live_loop :lead do
   use_midi_defaults channel: 1
   
   bar = tick(:bar)
@@ -146,7 +146,7 @@ end
 # ---------------------------------------------------------
 # ACID PLUCK (MIDI Channel 3)
 # ---------------------------------------------------------
-live_loop :rust_acid_pluck do
+live_loop :acid_pluck do
   use_midi_defaults channel: 3
   
   bar = tick(:bar)
