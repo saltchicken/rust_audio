@@ -60,10 +60,15 @@ pub fn process_f32_channels(
                     process_channel(ch_idx, input, output);
                 }
                 ChannelPair::InPlace(buf) => {
-                    // Clone input to a temporary slice so DSP can safely read original
-                    // samples while writing to the mutable output buffer.
-                    let input = buf.to_vec();
-                    process_channel(ch_idx, &input, buf);
+                    // Eliminate heap allocation (buf.to_vec()) in the real-time audio thread.
+                    // Process in chunks utilizing a stack-allocated buffer.
+                    const CHUNK_SIZE: usize = 4096;
+                    let mut tmp = [0.0f32; CHUNK_SIZE];
+                    for chunk in buf.chunks_mut(CHUNK_SIZE) {
+                        let len = chunk.len();
+                        tmp[..len].copy_from_slice(chunk);
+                        process_channel(ch_idx, &tmp[..len], chunk);
+                    }
                 }
             }
         }

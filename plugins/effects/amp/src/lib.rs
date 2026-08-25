@@ -55,6 +55,7 @@ impl Amplifier {
 
 pub struct MyAmpPluginAudioProcessor {
     channels: Vec<Amplifier>,
+    config: AmpConfig,
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyAmpPluginAudioProcessor {
@@ -66,6 +67,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyAmpPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         Ok(Self {
             channels: vec![Amplifier::new(), Amplifier::new()],
+            config: load_plugin_config::<AmpConfig>("amp"),
         })
     }
 
@@ -75,7 +77,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyAmpPluginAudioProcessor {
         mut audio: Audio,
         _events: Events,
     ) -> Result<ProcessStatus, PluginError> {
-        let config = load_plugin_config::<AmpConfig>("amp");
+        let config = &self.config;
 
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {
             let amp = if ch_idx < self.channels.len() {

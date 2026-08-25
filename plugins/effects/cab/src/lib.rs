@@ -117,6 +117,7 @@ impl CabChannel {
 pub struct MyCabPluginAudioProcessor {
     channels: Vec<CabChannel>,
     sample_rate: f64,
+    config: CabConfig,
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyCabPluginAudioProcessor {
@@ -129,6 +130,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCabPluginAudioProcessor {
         Ok(Self {
             channels: vec![CabChannel::new(), CabChannel::new()],
             sample_rate: audio_config.sample_rate,
+            config: load_plugin_config::<CabConfig>("cab"),
         })
     }
 
@@ -138,7 +140,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCabPluginAudioProcessor {
         mut audio: Audio,
         _events: Events,
     ) -> Result<ProcessStatus, PluginError> {
-        let config = load_plugin_config::<CabConfig>("cab");
+        let config = &self.config;
 
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {
             let cab = if ch_idx < self.channels.len() {
@@ -148,7 +150,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCabPluginAudioProcessor {
             };
 
             for (i, o) in input.iter().zip(output.iter_mut()) {
-                *o = cab.process(*i, self.sample_rate, &config);
+                *o = cab.process(*i, self.sample_rate, config);
             }
         });
 

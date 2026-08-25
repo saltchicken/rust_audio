@@ -85,6 +85,7 @@ impl ModulatedDelay {
 pub struct MyVibratoPluginAudioProcessor {
     channels: Vec<ModulatedDelay>,
     sample_rate: f32,
+    config: VibratoConfig,
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyVibratoPluginAudioProcessor {
@@ -95,12 +96,12 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyVibratoPluginAudioProcessor {
         audio_config: PluginAudioConfiguration,
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
-
         let channels = vec![ModulatedDelay::new(sr), ModulatedDelay::new(sr)];
 
         Ok(Self {
             channels,
             sample_rate: sr as f32,
+            config: load_plugin_config::<VibratoConfig>("vibrato"),
         })
     }
 
@@ -110,8 +111,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyVibratoPluginAudioProcessor {
         mut audio: Audio,
         _events: Events,
     ) -> Result<ProcessStatus, PluginError> {
-        // Load config per block to allow hot-reloading
-        let config = load_plugin_config::<VibratoConfig>("vibrato");
+        let config = &self.config;
 
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {
             let dsp = if ch_idx < self.channels.len() {

@@ -2,11 +2,11 @@ active_global_preset = "epic"
 master_volume = 2.0
 
 sample_rate = 48000
-enable_live_input = true
+enable_live_input = false
 latency_ms = 2.0
 capacity_seconds = 1.0
 plugin_chain = [
-  # "target/release/libsynth_plugin.so",
+  "target/release/libsynth_plugin.so",
   "target/release/libcompressor_clap_plugin.so",
   "target/release/libamp_clap_plugin.so",
   "target/release/libcab_clap_plugin.so",

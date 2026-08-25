@@ -77,6 +77,7 @@ impl CompressorChannel {
 pub struct MyCompressorPluginAudioProcessor {
     channels: Vec<CompressorChannel>,
     sample_rate: f32,
+    config: CompressorConfig,
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyCompressorPluginAudioProcessor {
@@ -89,6 +90,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCompressorPluginAudioProcessor {
         Ok(Self {
             channels: vec![CompressorChannel::new(), CompressorChannel::new()],
             sample_rate: audio_config.sample_rate as f32,
+            config: load_plugin_config::<CompressorConfig>("compressor"),
         })
     }
 
@@ -98,7 +100,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCompressorPluginAudioProcessor {
         mut audio: Audio,
         _events: Events,
     ) -> Result<ProcessStatus, PluginError> {
-        let config = load_plugin_config::<CompressorConfig>("compressor");
+        let config = &self.config;
 
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {
             let comp = if ch_idx < self.channels.len() {
@@ -108,7 +110,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCompressorPluginAudioProcessor {
             };
 
             for (i, o) in input.iter().zip(output.iter_mut()) {
-                *o = comp.process(*i, self.sample_rate, &config);
+                *o = comp.process(*i, self.sample_rate, config);
             }
         });
 
