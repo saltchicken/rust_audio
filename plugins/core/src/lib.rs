@@ -24,26 +24,28 @@ where
     let config_path = get_cli_config_path();
     let config_str = fs::read_to_string(&config_path).unwrap_or_default();
     
-    // The host injects the track's preset name into the environment right before activation
-    let global_name = env::var("CURRENT_TRACK_PRESET").unwrap_or_default();
+    // The host injects the track's index into the environment right before activation
+    let track_idx_str = env::var("CURRENT_TRACK_INDEX").unwrap_or_default();
+    let track_idx: usize = track_idx_str.parse().unwrap_or(0);
 
     if let Ok(global_cfg) = config_str.parse::<toml::Value>() {
-        if !global_name.is_empty() {
-            if let Some(preset_data) = global_cfg
-                .get("global_presets")
-                .and_then(|p| p.get(&global_name))
-                .and_then(|g| g.get(plugin_name))
-            {
-                if let Ok(config) = preset_data.clone().try_into::<T>() {
-                    return config;
+        if let Some(tracks) = global_cfg.get("track").and_then(|t| t.as_array()) {
+            if let Some(track) = tracks.get(track_idx) {
+                if let Some(plugin_data) = track
+                    .get("plugins")
+                    .and_then(|p| p.get(plugin_name))
+                {
+                    if let Ok(config) = plugin_data.clone().try_into::<T>() {
+                        return config;
+                    }
                 }
             }
         }
     }
 
     println!(
-        "Warning: Preset '{}' for '{}' not found, using default.",
-        global_name, plugin_name
+        "Warning: Config for plugin '{}' on track index '{}' not found, using default.",
+        plugin_name, track_idx
     );
     T::default()
 }

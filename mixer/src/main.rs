@@ -36,7 +36,7 @@ fn main() -> anyhow::Result<()> {
 
     loop {
         let app_config = load_or_create_config(&config_path)?;
-        let mut engine = AudioEngine::new(app_config, config_path.clone());
+        let mut engine = AudioEngine::new(app_config);
 
         match engine.run() {
             Ok(true) => continue,

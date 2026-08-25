@@ -7,7 +7,6 @@ output_device = "default"
 
 [[track]]
 name = "Synth Lead"
-active_preset = "epic"
 midi_channel = 0
 enable_live_input = false
 plugin_chain = [
@@ -20,9 +19,52 @@ plugin_chain = [
   "target/release/libreverb_test_plugin.so"
 ]
 
+[track.plugins.synth]
+attack_ms = 5.0
+release_ms = 15.0
+volume = 0.15
+
+[track.plugins.compressor]
+threshold_db = -18.0
+ratio = 4.0
+attack_ms = 5.0
+release_ms = 60.0
+makeup_gain_db = 4.5
+
+[track.plugins.amp]
+drive = 2.0
+tone = 0.4
+level = 0.6
+
+[track.plugins.cab]
+low_cut_hz = 80.0
+high_cut_hz = 5500.0
+resonance = 0.107
+
+[track.plugins.vibrato]
+rate_hz = 4.5
+depth_ms = 0.2
+mix = 1.0
+
+[track.plugins.delay]
+left_delay_ms = 400.0
+right_delay_ms = 530.0
+feedback = 0.65
+mix = 0.5
+
+[track.plugins.reverb]
+comb_lengths = [1557.0, 1617.0, 1491.0, 1422.0]
+allpass_lengths = [225.0, 556.0]
+comb_feedback = 0.84
+comb_dampening = 0.2
+allpass_feedback = 0.5
+left_spread = 0
+right_spread = 23
+mix = 0.4
+wet_scale = 0.15
+
 [[track]]
 name = "Clean"
-active_preset = "clean"
 midi_channel = 2
 enable_live_input = false
 plugin_chain = [
@@ -35,100 +77,40 @@ plugin_chain = [
   "target/release/libreverb_test_plugin.so"
 ]
 
-[[track]]
-name = "Drum Machine"
-active_preset = "epic"
-midi_channel = 1 # MIDI Channel 10 (0-indexed)
-enable_live_input = false
-plugin_chain = [
-  "target/release/libdrum_plugin.so"
-]
-
-# Add this block inside your global presets list
-[global_presets.epic.drum]
-volume = 0.8
-kick_decay_ms = 450.0
-snare_decay_ms = 220.0
-hihat_decay_ms = 90.0
-
-# ==============================================================================
-# GLOBAL PRESETS
-# ==============================================================================
-
-[global_presets.epic.synth]
+[track.plugins.synth]
 attack_ms = 5.0
 release_ms = 15.0
 volume = 0.15
 
-[global_presets.epic.compressor]
-threshold_db = -18.0
-ratio = 4.0
-attack_ms = 5.0
-release_ms = 60.0
-makeup_gain_db = 4.5
-
-[global_presets.epic.amp]
-drive = 2.0
-tone = 0.4
-level = 0.6
-
-[global_presets.epic.cab]
-low_cut_hz = 80.0
-high_cut_hz = 5500.0
-resonance = 0.107
-
-[global_presets.epic.vibrato]
-rate_hz = 4.5
-depth_ms = 0.2
-mix = 1.0
-
-[global_presets.epic.delay]
-left_delay_ms = 400.0
-right_delay_ms = 530.0
-feedback = 0.65
-mix = 0.5
-
-[global_presets.epic.reverb]
-comb_lengths = [1557.0, 1617.0, 1491.0, 1422.0]
-allpass_lengths = [225.0, 556.0]
-comb_feedback = 0.84
-comb_dampening = 0.2
-allpass_feedback = 0.5
-left_spread = 0
-right_spread = 23
-mix = 0.4
-wet_scale = 0.15
-
-
-[global_presets.clean.compressor]
+[track.plugins.compressor]
 threshold_db = -24.0
 ratio = 2.0
 attack_ms = 10.0
 release_ms = 100.0
 makeup_gain_db = 2.0
 
-[global_presets.clean.amp]
+[track.plugins.amp]
 drive = 8.0
 tone = 0.6
 level = 0.8
 
-[global_presets.clean.cab]
+[track.plugins.cab]
 low_cut_hz = 120.0
 high_cut_hz = 6000.0
 resonance = 0.05
 
-[global_presets.clean.vibrato]
+[track.plugins.vibrato]
 rate_hz = 2.0
 depth_ms = 0.1
 mix = 0.3
 
-[global_presets.clean.delay]
+[track.plugins.delay]
 left_delay_ms = 200.0
 right_delay_ms = 200.0
 feedback = 0.3
 mix = 0.2
 
-[global_presets.clean.reverb]
+[track.plugins.reverb]
 comb_lengths = [1557.0, 1617.0, 1491.0, 1422.0]
 allpass_lengths = [225.0, 556.0]
 comb_feedback = 0.5
@@ -138,3 +120,17 @@ left_spread = 0
 right_spread = 10
 mix = 0.15
 wet_scale = 0.10
+
+[[track]]
+name = "Drum Machine"
+midi_channel = 1
+enable_live_input = false
+plugin_chain = [
+  "target/release/libdrum_plugin.so"
+]
+
+[track.plugins.drum]
+volume = 0.8
+kick_decay_ms = 450.0
+snare_decay_ms = 220.0
+hihat_decay_ms = 90.0

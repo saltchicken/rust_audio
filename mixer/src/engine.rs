@@ -1,4 +1,4 @@
-use crate::config::{rotate_preset, MixerConfig};
+use crate::config::MixerConfig;
 use crate::host::MixerHost;
 use crate::midi::{connect_midi, MidiMsg};
 
@@ -11,15 +11,13 @@ use std::time::Duration;
 
 pub struct AudioEngine {
     config: MixerConfig,
-    config_path: String,
     host: cpal::Host,
 }
 
 impl AudioEngine {
-    pub fn new(config: MixerConfig, config_path: String) -> Self {
+    pub fn new(config: MixerConfig) -> Self {
         Self {
             config,
-            config_path,
             host: cpal::default_host(),
         }
     }
@@ -184,9 +182,8 @@ impl AudioEngine {
         for (idx, track_cfg) in self.config.track.iter().enumerate() {
             println!("👉 Track {}: '{}'\r", idx, track_cfg.name);
             
-            // Expose the preset to the plugins being loaded in this track via the environment
-            let preset = track_cfg.active_preset.as_deref().unwrap_or("");
-            std::env::set_var("CURRENT_TRACK_PRESET", preset);
+            // Expose the track index to the plugins being loaded in this track via the environment
+            std::env::set_var("CURRENT_TRACK_INDEX", idx.to_string());
 
             let mut processors = Vec::new();
 
@@ -207,7 +204,6 @@ impl AudioEngine {
                     &host_info,
                 )?;
 
-                // The plugin core will read CURRENT_TRACK_PRESET during activation
                 let stopped_processor = plugin_instance.activate(|_, _| (), audio_config)?;
                 let audio_processor = stopped_processor
                     .start_processing()
@@ -351,7 +347,7 @@ impl AudioEngine {
         )?;
 
         println!("\r\n🚀 Engine running at {}Hz!\r", sample_rate);
-        println!("👉 Press 'p'/'o' to rotate presets, 'r' to reload config, 'q' or Esc to quit.\r");
+        println!("👉 Press 'r' to reload config, 'q' or Esc to quit.\r");
 
         output_stream.play()?;
 
@@ -359,14 +355,6 @@ impl AudioEngine {
             if poll(Duration::from_millis(50))? {
                 if let Event::Key(event) = read()? {
                     match event.code {
-                        KeyCode::Char('p') | KeyCode::Char('P') => {
-                            let _ = rotate_preset(&self.config_path, true);
-                            return Ok(true);
-                        }
-                        KeyCode::Char('o') | KeyCode::Char('O') => {
-                            let _ = rotate_preset(&self.config_path, false);
-                            return Ok(true);
-                        }
                         KeyCode::Char('r') | KeyCode::Char('R') => {
                             println!("\r\n🔄 Reloading audio engine and config...\r");
                             return Ok(true);
