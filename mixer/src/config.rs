@@ -5,13 +5,14 @@ use std::fs;
 pub struct MixerConfig {
     pub active_global_preset: Option<String>,
     pub master_volume: Option<f32>,
-    pub sample_rate: u32, // Changed from Option<u32>
+    pub sample_rate: u32, 
     pub enable_live_input: bool,
     pub latency_ms: f32,
     pub capacity_seconds: f32,
     pub plugin_chain: Vec<String>,
     pub input_device: String,
     pub output_device: String,
+    pub midi_channel: Option<u8>,
 }
 
 impl Default for MixerConfig {
@@ -26,6 +27,7 @@ impl Default for MixerConfig {
             plugin_chain: vec![],
             input_device: "default".to_string(),
             output_device: "default".to_string(),
+            midi_channel: None,
         }
     }
 }

@@ -6,7 +6,7 @@ pub enum MidiMsg {
     NoteOff(u8),
 }
 
-pub fn connect_midi<F>(mut on_message: F) -> Option<MidiInputConnection<()>>
+pub fn connect_midi<F>(target_channel: Option<u8>, mut on_message: F) -> Option<MidiInputConnection<()>>
 where
     F: FnMut(MidiMsg) + Send + 'static,
 {
@@ -18,7 +18,12 @@ where
         let port_name = midi_in
             .port_name(port)
             .unwrap_or_else(|_| "Unknown USB Device".into());
-        println!("✅ Bound to MIDI: {}\r", port_name);
+        
+        if let Some(ch) = target_channel {
+            println!("✅ Bound to MIDI: {} (Listening on Channel {})\r", port_name, ch);
+        } else {
+            println!("✅ Bound to MIDI: {} (Listening on All Channels)\r", port_name);
+        }
 
         let conn = midi_in
             .connect(
@@ -27,6 +32,15 @@ where
                 move |_, message, _| {
                     if message.len() >= 3 {
                         let status_nibble = message[0] & 0xF0;
+                        let channel = message[0] & 0x0F;
+
+                        // Ignore messages not matching target channel (if one is configured)
+                        if let Some(target) = target_channel {
+                            if channel != target {
+                                return;
+                            }
+                        }
+
                         let note = message[1];
                         let velocity = message[2];
                         let normalized_vel = velocity as f32 / 127.0;

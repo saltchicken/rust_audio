@@ -82,8 +82,9 @@ impl AudioEngine {
         // --- MIDI SETUP ---
         let midi_rb = HeapRb::<MidiMsg>::new(256);
         let (mut midi_tx, mut midi_rx) = midi_rb.split();
+        let target_channel = self.config.midi_channel;
 
-        let _midi_connection = connect_midi(move |msg| {
+        let _midi_connection = connect_midi(target_channel, move |msg| {
             let _ = midi_tx.push(msg);
         });
 
