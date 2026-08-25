@@ -56,6 +56,13 @@ pub fn process_f32_channels(
     audio: &mut Audio,
     mut process_channel: impl FnMut(usize, &[f32], &mut [f32]),
 ) {
+    // Thread-local vector gracefully expands dynamically avoiding the chunking loop
+    // bug while obeying strict Rust aliasing boundaries. No re-allocation happens
+    // on the real-time audio thread after the first capacity expansion.
+    thread_local! {
+        static TMP_BUF: std::cell::RefCell<Vec<f32>> = std::cell::RefCell::new(Vec::new());
+    }
+
     for mut port_pair in audio.port_pairs() {
         let Some(channel_pairs) = port_pair.channels().ok().and_then(|c| c.into_f32()) else {
             continue;
@@ -72,13 +79,20 @@ pub fn process_f32_channels(
                     process_channel(ch_idx, input, output);
                 }
                 ChannelPair::InPlace(buf) => {
-                    const CHUNK_SIZE: usize = 4096;
-                    let mut tmp = [0.0f32; CHUNK_SIZE];
-                    for chunk in buf.chunks_mut(CHUNK_SIZE) {
-                        let len = chunk.len();
-                        tmp[..len].copy_from_slice(chunk);
-                        process_channel(ch_idx, &tmp[..len], chunk);
-                    }
+                    TMP_BUF.with(|tmp| {
+                        let mut tmp_ref = tmp.borrow_mut();
+                        let len = buf.len();
+                        
+                        // Extend our lock-free buffer if the block request gets larger
+                        if tmp_ref.len() < len {
+                            tmp_ref.resize(len, 0.0);
+                        }
+                        
+                        // Copy entire buffer to satisfy aliasing constraint safely 
+                        // completely bypassing the flawed 4096 framing chunk system.
+                        tmp_ref[..len].copy_from_slice(buf);
+                        process_channel(ch_idx, &tmp_ref[..len], buf);
+                    });
                 }
             }
         }

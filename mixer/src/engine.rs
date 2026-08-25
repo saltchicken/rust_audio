@@ -9,6 +9,49 @@ use crossterm::event::{poll, read, Event, KeyCode, KeyModifiers};
 use ringbuf::HeapRb;
 use std::time::Duration;
 
+#[inline]
+fn set_denormals_zero() {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+    unsafe {
+        let mut mxcsr: u32 = 0;
+        // Store current MXCSR register to our variable
+        core::arch::asm!(
+            "stmxcsr [{0}]",
+            in(reg) &mut mxcsr,
+            options(nostack)
+        );
+
+        // 0x8040 covers DAZ (bit 6) and FTZ (bit 15)
+        if (mxcsr & 0x8040) != 0x8040 {
+            mxcsr |= 0x8040;
+            // Load the updated variable back into the MXCSR register
+            core::arch::asm!(
+                "ldmxcsr [{0}]",
+                in(reg) &mxcsr,
+                options(readonly, nostack)
+            );
+        }
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    unsafe {
+        let mut fpcr: u64;
+        core::arch::asm!(
+            "mrs {}, fpcr", 
+            out(reg) fpcr,
+            options(nomem, nostack)
+        );
+        // Bit 24 is FZ (Flush-to-Zero)
+        if (fpcr & (1 << 24)) == 0 {
+            core::arch::asm!(
+                "msr fpcr, {}", 
+                in(reg) (fpcr | (1 << 24)),
+                options(nomem, nostack)
+            );
+        }
+    }
+}
+
 pub struct AudioEngine {
     config: MixerConfig,
     host: cpal::Host,
@@ -231,6 +274,9 @@ impl AudioEngine {
         let output_stream = output_device.build_output_stream(
             &output_stream_config,
             move |data: &mut [f32], _: &_| {
+                // Denormal CPU spike fix: execute directly on the thread executing DSP 
+                set_denormals_zero();
+
                 let samples_to_read = data.len();
                 let frames = samples_to_read / channels;
 
