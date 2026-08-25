@@ -1,3 +1,4 @@
+# example.sonicpi
 #-- Sonic Pi Set v1
 #-- meta {"current":0,"zooms":[2,2,2,2,2,2,2,2,2,2]}
 #-- buffer 0
@@ -25,15 +26,24 @@ live_loop :rust_drums do
       midi 38, velocity: 100 if i % 8 == 4
       midi 42, velocity: (ring 90, 60, 75, 60)[i % 4]
       
-    when 2 # Variation B: Syncopated breakbeat
+    when 2 # Variation B: Syncopated breakbeat + Toms
       midi 36, velocity: 110 if (ring 1,0,0,0, 0,0,1,0, 0,0,0,0, 1,0,0,0)[i] == 1
       midi 38, velocity: 100 if (ring 0,0,0,0, 1,0,0,1, 0,0,0,0, 1,0,0,0)[i] == 1
       midi 42, velocity: (ring 100, 40, 80, 40)[i % 4]
+      midi 47, velocity: 85 if i == 10 # Mid tom syncopation
+      midi 43, velocity: 90 if i == 14 # Low tom hit
       
-    when 3 # Variation C: Driving 16th note hats
+    when 3 # Variation C: Driving 16th note hats + Tom fills
       midi 36, velocity: 110 if i % 4 == 0
       midi 38, velocity: 100 if i % 8 == 4
       midi 42, velocity: (ring 90, 80)[i % 2]
+      
+      # Epic tom fill on the last bar of the pattern
+      if (bar % 4 == 3) && i >= 12
+        midi 50, velocity: 100 if i == 12 # High Tom
+        midi 47, velocity: 100 if i == 13 # Mid Tom
+        midi 43, velocity: 100 if i == 14 || i == 15 # Low Toms
+      end
     end
     sleep 0.25
   end

@@ -18,6 +18,7 @@ volume = 0.8
 kick_decay_ms = 450.0
 snare_decay_ms = 220.0
 hihat_decay_ms = 90.0
+tom_decay_ms = 350.0
 
 
 [[track]]

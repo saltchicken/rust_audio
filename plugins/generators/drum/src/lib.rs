@@ -13,6 +13,7 @@ struct DrumConfig {
     kick_decay_ms: f32,
     snare_decay_ms: f32,
     hihat_decay_ms: f32,
+    tom_decay_ms: f32,
 }
 
 impl Default for DrumConfig {
@@ -22,6 +23,7 @@ impl Default for DrumConfig {
             kick_decay_ms: 400.0,
             snare_decay_ms: 200.0,
             hihat_decay_ms: 80.0,
+            tom_decay_ms: 350.0,
         }
     }
 }
@@ -30,7 +32,7 @@ impl Default for DrumConfig {
 
 struct DrumVoice {
     active: bool,
-    instrument: u8, // 0: Kick, 1: Snare, 2: Hi-hat
+    instrument: u8, // 0: Kick, 1: Snare, 2: Hi-hat, 3: Low Tom, 4: Mid Tom, 5: High Tom
     phase: f32,
     env: f32,
     env_decay: f32,
@@ -60,7 +62,9 @@ impl DrumVoice {
         
         // Calculate exponential decay multipliers (time to reach ~1%)
         self.env_decay = (-4.6 / ((decay_ms / 1000.0) * sample_rate)).exp();
-        self.pitch_decay = (-4.6 / (0.05 * sample_rate)).exp(); // 50ms pitch drop for kick
+        
+        let pitch_drop_time = if instrument == 0 { 0.05 } else { 0.1 };
+        self.pitch_decay = (-4.6 / (pitch_drop_time * sample_rate)).exp();
     }
 
     fn next_noise(&mut self) -> f32 {
@@ -98,6 +102,17 @@ impl DrumVoice {
                 self.last_noise = noise;
                 out = hp * self.env;
             }
+            3 | 4 | 5 => { // Toms: Modulated sine wave based on pitch class
+                self.pitch_env *= self.pitch_decay;
+                let base_freq = match self.instrument {
+                    3 => 90.0,  // Low Tom
+                    4 => 130.0, // Mid Tom
+                    _ => 180.0, // High Tom
+                };
+                let freq = base_freq + (base_freq * 1.5) * self.pitch_env;
+                self.phase = (self.phase + freq / sample_rate).fract();
+                out = (self.phase * 2.0 * PI).sin() * self.env;
+            }
             _ => {}
         }
 
@@ -107,7 +122,7 @@ impl DrumVoice {
 
 // --- 3. CLAP Plugin Processor ---
 
-const MAX_VOICES: usize = 8;
+const MAX_VOICES: usize = 12;
 
 pub struct MyDrumProcessor {
     voices: Vec<DrumVoice>,
@@ -157,9 +172,12 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
                     
                     // Map standard MIDI notes to our drums
                     let (inst, decay) = match key {
-                        36 => (0, self.config.kick_decay_ms),   // C1
-                        38 => (1, self.config.snare_decay_ms),  // D1
-                        42 => (2, self.config.hihat_decay_ms),  // F#1
+                        36 => (0, self.config.kick_decay_ms),   // C1  - Kick
+                        38 => (1, self.config.snare_decay_ms),  // D1  - Snare
+                        42 => (2, self.config.hihat_decay_ms),  // F#1 - Hi-hat
+                        43 => (3, self.config.tom_decay_ms),    // G1  - Low Tom
+                        47 => (4, self.config.tom_decay_ms),    // B1  - Mid Tom
+                        50 => (5, self.config.tom_decay_ms),    // D2  - High Tom
                         _ => continue,
                     };
 
