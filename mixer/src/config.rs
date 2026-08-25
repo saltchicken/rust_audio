@@ -44,8 +44,7 @@ pub fn load_or_create_config(path: &str) -> anyhow::Result<MixerConfig> {
     }
 }
 
-pub fn rotate_preset(forward: bool) -> anyhow::Result<()> {
-    let config_path = "config.toml";
+pub fn rotate_preset(config_path: &str, forward: bool) -> anyhow::Result<()> {
     let config_str = fs::read_to_string(config_path)?;
     let parsed: toml::Value = toml::from_str(&config_str)?;
 
@@ -84,7 +83,7 @@ pub fn rotate_preset(forward: bool) -> anyhow::Result<()> {
         fs::write(config_path, new_config_str)?;
         println!("\r\n🔄 Switched to preset '{}'\r", next_preset);
     } else {
-        println!("\r\n⚠️ No [global_presets] section found in config.toml\r");
+        println!("\r\n⚠️ No [global_presets] section found in config\r");
     }
     Ok(())
 }

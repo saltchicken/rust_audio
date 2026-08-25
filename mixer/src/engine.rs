@@ -11,13 +11,15 @@ use std::time::Duration;
 
 pub struct AudioEngine {
     config: MixerConfig,
+    config_path: String,
     host: cpal::Host,
 }
 
 impl AudioEngine {
-    pub fn new(config: MixerConfig) -> Self {
+    pub fn new(config: MixerConfig, config_path: String) -> Self {
         Self {
             config,
+            config_path,
             host: cpal::default_host(),
         }
     }
@@ -333,11 +335,11 @@ impl AudioEngine {
                 if let Event::Key(event) = read()? {
                     match event.code {
                         KeyCode::Char('p') | KeyCode::Char('P') => {
-                            let _ = rotate_preset(true);
+                            let _ = rotate_preset(&self.config_path, true);
                             return Ok(true);
                         }
                         KeyCode::Char('o') | KeyCode::Char('O') => {
-                            let _ = rotate_preset(false);
+                            let _ = rotate_preset(&self.config_path, false);
                             return Ok(true);
                         }
                         KeyCode::Char('r') | KeyCode::Char('R') => {

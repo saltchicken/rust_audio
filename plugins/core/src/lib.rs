@@ -1,14 +1,29 @@
 use clack_plugin::prelude::*;
 use serde::de::DeserializeOwned;
+use std::env;
 use std::fs;
 
 // --- 1. Global Configuration Extractor ---
+
+// Helper to read the host's CLI args from within the plugin
+fn get_cli_config_path() -> String {
+    let args: Vec<String> = env::args().collect();
+    let mut i = 1;
+    while i < args.len() {
+        if args[i] == "--config" && i + 1 < args.len() {
+            return args[i + 1].clone();
+        }
+        i += 1;
+    }
+    "config.toml".to_string() // Fallback
+}
 
 pub fn load_plugin_config<T>(plugin_name: &str) -> T
 where
     T: DeserializeOwned + Default + Clone,
 {
-    let config_str = fs::read_to_string("config.toml").unwrap_or_default();
+    let config_path = get_cli_config_path();
+    let config_str = fs::read_to_string(&config_path).unwrap_or_default();
 
     // Parse as an untyped toml Value to navigate dynamically
     if let Ok(global_cfg) = config_str.parse::<toml::Value>() {

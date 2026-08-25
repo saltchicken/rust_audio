@@ -19,6 +19,7 @@ impl Drop for RawModeGuard {
 fn main() -> anyhow::Result<()> {
     let args: Vec<String> = env::args().collect();
     let mut cli_midi_channel: Option<u8> = None;
+    let mut config_path = "config.toml".to_string();
 
     let mut i = 1;
     while i < args.len() {
@@ -33,6 +34,11 @@ fn main() -> anyhow::Result<()> {
                 }
                 i += 1;
             }
+        } else if args[i] == "--config" {
+            if i + 1 < args.len() {
+                config_path = args[i + 1].clone();
+                i += 1;
+            }
         }
         i += 1;
     }
@@ -41,14 +47,13 @@ fn main() -> anyhow::Result<()> {
     let _guard = RawModeGuard;
 
     loop {
-        let config_path = "config.toml";
-        let mut app_config = load_or_create_config(config_path)?;
+        let mut app_config = load_or_create_config(&config_path)?;
         
         if cli_midi_channel.is_some() {
             app_config.midi_channel = cli_midi_channel;
         }
 
-        let mut engine = AudioEngine::new(app_config);
+        let mut engine = AudioEngine::new(app_config, config_path.clone());
 
         match engine.run() {
             Ok(true) => continue,
