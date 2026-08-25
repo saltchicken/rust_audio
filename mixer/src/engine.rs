@@ -339,7 +339,7 @@ impl AudioEngine {
                 }
 
                 for sample in data.iter_mut() {
-                    *sample = sample.clamp(-1.0, 1.0);
+                    *sample = sample.tanh();
                 }
             },
             |err| eprintln!("Stream error: {}\r", err),
