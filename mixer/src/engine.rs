@@ -46,7 +46,6 @@ impl AudioEngine {
 
         let target_sr = cpal::SampleRate(self.config.sample_rate);
 
-        // 1. Hunt for the configuration with the lowest minimum buffer size and ensure stereo (2 channels)
         let supported_config = output_device
             .supported_output_configs()?
             .filter(|c| c.channels() == 2 && c.min_sample_rate() <= target_sr && c.max_sample_rate() >= target_sr)
@@ -54,7 +53,7 @@ impl AudioEngine {
                 cpal::SupportedBufferSize::Range { min, .. } => *min,
                 cpal::SupportedBufferSize::Unknown => u32::MAX,
             })
-            .map(|c| c.with_sample_rate(target_sr)) // Map to SupportedStreamConfig first
+            .map(|c| c.with_sample_rate(target_sr))
             .unwrap_or_else(|| {
                 output_device
                     .default_output_config()
@@ -63,14 +62,10 @@ impl AudioEngine {
 
         let mut output_stream_config: cpal::StreamConfig = supported_config.clone().into();
 
-        // 2. Aggressively force the absolute minimum buffer size
         if let cpal::SupportedBufferSize::Range { min, max } = supported_config.buffer_size() {
-            // Push as low as the hardware allows, bounded by 64 frames to prevent immediate underruns
             let desired = (*min).max(64).min(*max);
             output_stream_config.buffer_size = cpal::BufferSize::Fixed(desired);
             println!("⚡ Requested Output Buffer Size: {} frames\r", desired);
-        } else {
-            println!("⚠️ Hardware forced unknown output buffer size\r");
         }
 
         Ok((output_device, output_stream_config))
@@ -84,9 +79,8 @@ impl AudioEngine {
         // --- MIDI SETUP ---
         let midi_rb = HeapRb::<MidiMsg>::new(256);
         let (mut midi_tx, mut midi_rx) = midi_rb.split();
-        let target_channel = self.config.midi_channel;
 
-        let _midi_connection = connect_midi(target_channel, move |msg| {
+        let _midi_connection = connect_midi(move |msg| {
             let _ = midi_tx.push(msg);
         });
 
@@ -94,7 +88,10 @@ impl AudioEngine {
         let mut opt_consumer = None;
         let mut _input_stream_guard = None;
 
-        if self.config.enable_live_input {
+        // Check if ANY track has live input enabled
+        let any_live_input = self.config.track.iter().any(|t| t.enable_live_input);
+
+        if any_live_input {
             let input_device = if self.config.input_device.to_lowercase() == "default" {
                 self.host
                     .default_input_device()
@@ -113,8 +110,6 @@ impl AudioEngine {
             println!("✅ Bound to Input:  {}\r", input_device.name()?);
 
             let target_sr = cpal::SampleRate(sample_rate);
-
-            // Apply the same aggressive buffer sizing strategy and stereo requirement to the input stream
             let supported_input_config = input_device
                 .supported_input_configs()?
                 .filter(|c| c.channels() == 2 && c.min_sample_rate() <= target_sr && c.max_sample_rate() >= target_sr)
@@ -122,7 +117,7 @@ impl AudioEngine {
                     cpal::SupportedBufferSize::Range { min, .. } => *min,
                     cpal::SupportedBufferSize::Unknown => u32::MAX,
                 })
-                .map(|c| c.with_sample_rate(target_sr)) // Map to SupportedStreamConfig first
+                .map(|c| c.with_sample_rate(target_sr))
                 .unwrap_or_else(|| {
                     input_device
                         .default_input_config()
@@ -135,8 +130,6 @@ impl AudioEngine {
                 let desired = (*min).max(64).min(*max);
                 input_stream_config.buffer_size = cpal::BufferSize::Fixed(desired);
                 println!("⚡ Requested Input Buffer Size: {} frames\r", desired);
-            } else {
-                println!("⚠️ Hardware forced unknown input buffer size\r");
             }
 
             let latency_frames =
@@ -164,7 +157,7 @@ impl AudioEngine {
             input_stream.play()?;
             _input_stream_guard = Some(input_stream);
         } else {
-            println!("✅ Live input disabled (Generator Mode)\r");
+            println!("✅ Live input disabled for all tracks\r");
         }
 
         let host_info = HostInfo::new(
@@ -180,49 +173,60 @@ impl AudioEngine {
             max_frames_count: max_frames as u32,
         };
 
-        // We must hold these instances so they don't drop during audio processing
-        let mut plugin_entries = Vec::new();
-        let mut plugin_instances = Vec::new();
-        let mut audio_processors = Vec::new();
+        // Arrays to hold instantiated track state
+        let mut all_plugin_entries = Vec::new();
+        let mut all_plugin_instances = Vec::new();
+        let mut tracks_processors = Vec::new();
+        let mut tracks_events = Vec::new();
+        let mut tracks_intermediate_buffers = Vec::new();
+        let mut input_ports_vec = Vec::new();
+        let mut output_ports_vec = Vec::new();
 
-        for plugin_path in &self.config.plugin_chain {
-            println!("✅ Loading CLAP from: {}\r", plugin_path);
-            let entry = unsafe { PluginEntry::load(plugin_path) }?;
-            let factory = entry.get_plugin_factory().expect("No plugin factory found");
-            let descriptor = factory
-                .plugin_descriptors()
-                .next()
-                .expect("No plugins found in CLAP");
+        println!("\r\n--- Initializing Tracks ---");
+        for (idx, track_cfg) in self.config.track.iter().enumerate() {
+            println!("👉 Track {}: '{}'", idx, track_cfg.name);
+            let mut processors = Vec::new();
 
-            let mut plugin_instance = PluginInstance::<MixerHost>::new(
-                |_| (),
-                |_| (),
-                &entry,
-                descriptor.id().unwrap(),
-                &host_info,
-            )?;
+            for plugin_path in &track_cfg.plugin_chain {
+                println!("   ✅ Loading: {}", plugin_path);
+                let entry = unsafe { PluginEntry::load(plugin_path) }?;
+                let factory = entry.get_plugin_factory().expect("No plugin factory found");
+                let descriptor = factory
+                    .plugin_descriptors()
+                    .next()
+                    .expect("No plugins found in CLAP");
 
-            let stopped_processor = plugin_instance.activate(|_, _| (), audio_config)?;
-            let audio_processor = stopped_processor
-                .start_processing()
-                .map_err(|e| anyhow::anyhow!("Failed to start CLAP processor: {:?}", e))?;
+                let mut plugin_instance = PluginInstance::<MixerHost>::new(
+                    |_| (),
+                    |_| (),
+                    &entry,
+                    descriptor.id().unwrap(),
+                    &host_info,
+                )?;
 
-            plugin_instances.push(plugin_instance);
-            plugin_entries.push(entry);
-            audio_processors.push(audio_processor);
+                let stopped_processor = plugin_instance.activate(|_, _| (), audio_config)?;
+                let audio_processor = stopped_processor
+                    .start_processing()
+                    .map_err(|e| anyhow::anyhow!("Failed to start CLAP processor: {:?}", e))?;
+
+                processors.push(audio_processor);
+                all_plugin_instances.push(plugin_instance);
+                all_plugin_entries.push(entry);
+            }
+
+            tracks_processors.push(processors);
+            tracks_events.push((EventBuffer::new(), EventBuffer::new()));
+            tracks_intermediate_buffers.push([
+                vec![vec![0.0f32; max_frames as usize]; channels],
+                vec![vec![0.0f32; max_frames as usize]; channels],
+            ]);
+            input_ports_vec.push(AudioPorts::with_capacity(channels, 1));
+            output_ports_vec.push(AudioPorts::with_capacity(channels, 1));
         }
 
-        let mut intermediate_buffers = [
-            vec![vec![0.0f32; max_frames as usize]; channels],
-            vec![vec![0.0f32; max_frames as usize]; channels],
-        ];
         let mut interleaved_in = vec![0.0f32; max_frames as usize * channels];
-
-        let mut input_ports = AudioPorts::with_capacity(channels, 1);
-        let mut output_ports = AudioPorts::with_capacity(channels, 1);
-        let mut input_events_buffer = EventBuffer::new();
-        let mut output_events_buffer = EventBuffer::new();
         let master_volume = self.config.master_volume.unwrap_or(1.0);
+        let config_tracks = self.config.track.clone();
 
         let output_stream = output_device.build_output_stream(
             &output_stream_config,
@@ -230,6 +234,7 @@ impl AudioEngine {
                 let samples_to_read = data.len();
                 let frames = samples_to_read / channels;
 
+                // 1. Pull hardware live input from the ringbuffer once
                 if let Some(consumer) = &mut opt_consumer {
                     let read = consumer.pop_slice(&mut interleaved_in[..samples_to_read]);
                     interleaved_in[read..samples_to_read].fill(0.0);
@@ -237,88 +242,113 @@ impl AudioEngine {
                     interleaved_in[..samples_to_read].fill(0.0);
                 }
 
-                for frame in 0..frames {
-                    for ch in 0..channels {
-                        intermediate_buffers[0][ch][frame] = interleaved_in[frame * channels + ch];
-                    }
+                // 2. Clear master output buffer
+                data.fill(0.0);
+
+                // 3. Clear all track input event buffers
+                for (in_ev, _) in &mut tracks_events {
+                    in_ev.clear();
                 }
 
-                input_events_buffer.clear();
+                // 4. Route incoming MIDI to the correct track buffers
                 while let Some(msg) = midi_rx.pop() {
                     match msg {
-                        MidiMsg::NoteOn(note, velocity) => {
-                            let event = NoteOnEvent::new(
-                                0,
-                                Pckn::new(0u16, 0u16, note, 0u32),
-                                velocity as f64,
-                            );
-                            input_events_buffer.push(&event);
+                        MidiMsg::NoteOn(ch, note, velocity) => {
+                            for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
+                                if track_cfg.midi_channel.is_none() || track_cfg.midi_channel == Some(ch) {
+                                    let event = NoteOnEvent::new(
+                                        0,
+                                        Pckn::new(0u16, ch as u16, note, 0u32),
+                                        velocity as f64,
+                                    );
+                                    tracks_events[track_idx].0.push(&event);
+                                }
+                            }
                         }
-                        MidiMsg::NoteOff(note) => {
-                            let event =
-                                NoteOffEvent::new(0, Pckn::new(0u16, 0u16, note, 0u32), 0.0);
-                            input_events_buffer.push(&event);
+                        MidiMsg::NoteOff(ch, note) => {
+                            for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
+                                if track_cfg.midi_channel.is_none() || track_cfg.midi_channel == Some(ch) {
+                                    let event = NoteOffEvent::new(0, Pckn::new(0u16, ch as u16, note, 0u32), 0.0);
+                                    tracks_events[track_idx].0.push(&event);
+                                }
+                            }
                         }
                     }
                 }
 
-                if audio_processors.is_empty() {
+                // 5. Process each track independently
+                for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
+                    let processors = &mut tracks_processors[track_idx];
+                    let (input_events_buffer, output_events_buffer) = &mut tracks_events[track_idx];
+                    let intermediate_buffers = &mut tracks_intermediate_buffers[track_idx];
+                    let input_ports = &mut input_ports_vec[track_idx];
+                    let output_ports = &mut output_ports_vec[track_idx];
+
+                    // Seed track's first buffer with live hardware input (if enabled)
                     for frame in 0..frames {
                         for ch in 0..channels {
-                            let sample = intermediate_buffers[0][ch][frame] * master_volume;
-                            data[frame * channels + ch] = sample.clamp(-1.0, 1.0);
+                            if track_cfg.enable_live_input {
+                                intermediate_buffers[0][ch][frame] = interleaved_in[frame * channels + ch];
+                            } else {
+                                intermediate_buffers[0][ch][frame] = 0.0;
+                            }
                         }
                     }
-                    return;
-                }
 
-                let mut current_in_buf = 0;
+                    let mut current_in_buf = 0;
 
-                for audio_processor in audio_processors.iter_mut() {
-                    let [ref mut buf_0, ref mut buf_1] = intermediate_buffers;
-                    let (in_buf, out_buf) = if current_in_buf == 0 {
-                        (buf_0, buf_1)
-                    } else {
-                        (buf_1, buf_0)
-                    };
+                    // Run the track's plugin chain
+                    for audio_processor in processors.iter_mut() {
+                        let [ref mut buf_0, ref mut buf_1] = intermediate_buffers;
+                        let (in_buf, out_buf) = if current_in_buf == 0 {
+                            (buf_0, buf_1)
+                        } else {
+                            (buf_1, buf_0)
+                        };
 
-                    let clap_input = input_ports.with_input_buffers([AudioPortBuffer {
-                        latency: 0,
-                        channels: AudioPortBufferType::f32_input_only(
-                            in_buf
-                                .iter_mut()
-                                .map(|c| InputChannel::constant(&mut c[..frames])),
-                        ),
-                    }]);
+                        let clap_input = input_ports.with_input_buffers([AudioPortBuffer {
+                            latency: 0,
+                            channels: AudioPortBufferType::f32_input_only(
+                                in_buf
+                                    .iter_mut()
+                                    .map(|c| InputChannel::constant(&mut c[..frames])),
+                            ),
+                        }]);
 
-                    let mut clap_output = output_ports.with_output_buffers([AudioPortBuffer {
-                        latency: 0,
-                        channels: AudioPortBufferType::f32_output_only(
-                            out_buf.iter_mut().map(|c| &mut c[..frames]),
-                        ),
-                    }]);
+                        let mut clap_output = output_ports.with_output_buffers([AudioPortBuffer {
+                            latency: 0,
+                            channels: AudioPortBufferType::f32_output_only(
+                                out_buf.iter_mut().map(|c| &mut c[..frames]),
+                            ),
+                        }]);
 
-                    let input_events = InputEvents::from_buffer(&input_events_buffer);
-                    let mut output_events = OutputEvents::from_buffer(&mut output_events_buffer);
+                        let input_events = InputEvents::from_buffer(&*input_events_buffer);
+                        let mut output_events = OutputEvents::from_buffer(output_events_buffer);
 
-                    let _ = audio_processor.process(
-                        &clap_input,
-                        &mut clap_output,
-                        &input_events,
-                        &mut output_events,
-                        Some(0),
-                        None,
-                    );
+                        let _ = audio_processor.process(
+                            &clap_input,
+                            &mut clap_output,
+                            &input_events,
+                            &mut output_events,
+                            Some(0),
+                            None,
+                        );
 
-                    current_in_buf = 1 - current_in_buf;
-                }
-
-                let final_buf = current_in_buf;
-                for frame in 0..frames {
-                    for ch in 0..channels {
-                        let sample = intermediate_buffers[final_buf][ch][frame] * master_volume;
-                        data[frame * channels + ch] = sample.clamp(-1.0, 1.0);
+                        current_in_buf = 1 - current_in_buf;
                     }
+
+                    // Sum the track's final output buffer into the master output buffer
+                    let final_buf = current_in_buf;
+                    for frame in 0..frames {
+                        for ch in 0..channels {
+                            data[frame * channels + ch] += intermediate_buffers[final_buf][ch][frame] * master_volume;
+                        }
+                    }
+                }
+
+                // 6. Hard clip the master output to prevent digital distortion
+                for sample in data.iter_mut() {
+                    *sample = sample.clamp(-1.0, 1.0);
                 }
             },
             |err| eprintln!("Stream error: {}\r", err),

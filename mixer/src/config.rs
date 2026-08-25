@@ -1,18 +1,24 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TrackConfig {
+    pub name: String,
+    pub midi_channel: Option<u8>,
+    pub enable_live_input: bool,
+    pub plugin_chain: Vec<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct MixerConfig {
     pub active_global_preset: Option<String>,
     pub master_volume: Option<f32>,
-    pub sample_rate: u32, 
-    pub enable_live_input: bool,
+    pub sample_rate: u32,
     pub latency_ms: f32,
     pub capacity_seconds: f32,
-    pub plugin_chain: Vec<String>,
     pub input_device: String,
     pub output_device: String,
-    pub midi_channel: Option<u8>,
+    pub track: Vec<TrackConfig>,
 }
 
 impl Default for MixerConfig {
@@ -21,13 +27,16 @@ impl Default for MixerConfig {
             active_global_preset: None,
             master_volume: Some(1.0),
             sample_rate: 48000,
-            enable_live_input: false,
             latency_ms: 2.0,
             capacity_seconds: 0.5,
-            plugin_chain: vec![],
             input_device: "default".to_string(),
             output_device: "default".to_string(),
-            midi_channel: None,
+            track: vec![TrackConfig {
+                name: "Default Track".to_string(),
+                midi_channel: None,
+                enable_live_input: false,
+                plugin_chain: vec![],
+            }],
         }
     }
 }
