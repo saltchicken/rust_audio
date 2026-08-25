@@ -50,51 +50,6 @@ live_loop :drums do
 end
 
 # ---------------------------------------------------------
-# BASS LINE (MIDI Channel 2)
-# ---------------------------------------------------------
-live_loop :clean do
-  use_midi_defaults channel: 2
-  
-  bar = tick(:bar)
-  pat = (bar / 4) % 4
-  
-  prog = (ring chord(:C3, :m11), chord(:F3, :m7), chord(:Eb3, :maj9), chord(:G3, :m7))
-  
-  # Change chords every 2 bars smoothly
-  chord_idx = (bar / 2) % 4
-  current_chord = prog[chord_idx]
-  
-  case pat
-  when 0 # Original: Long atmospheric chords
-    2.times do
-      current_chord.each { |n| midi n, velocity: 70, sustain: 1.8 }
-      sleep 2.0
-    end
-    
-  when 1 # Variation A: Rhythmic 8th-note pulse on root notes
-    root = current_chord[0]
-    8.times do
-      midi root, velocity: 85, sustain: 0.2
-      sleep 0.5
-    end
-    
-  when 2 # Variation B: Arpeggiated rolling chords
-    8.times do |j|
-      midi current_chord[j % current_chord.length], velocity: 75, sustain: 0.4
-      sleep 0.5
-    end
-    
-  when 3 # Variation C: Alternate darker chord progression
-    alt_prog = (ring chord(:C3, :m11), chord(:Ab2, :maj9), chord(:F2, :m7), chord(:G2, :m7))
-    alt_chord = alt_prog[chord_idx]
-    2.times do
-      alt_chord.each { |n| midi n, velocity: 70, sustain: 1.8 }
-      sleep 2.0
-    end
-  end
-end
-
-# ---------------------------------------------------------
 # SYNTH LEAD MELODY (MIDI Channel 1)
 # ---------------------------------------------------------
 live_loop :lead do
@@ -142,6 +97,53 @@ live_loop :lead do
     end
   end
 end
+
+
+# ---------------------------------------------------------
+# BASS LINE (MIDI Channel 2)
+# ---------------------------------------------------------
+live_loop :clean do
+  use_midi_defaults channel: 2
+  
+  bar = tick(:bar)
+  pat = (bar / 4) % 4
+  
+  prog = (ring chord(:C3, :m11), chord(:F3, :m7), chord(:Eb3, :maj9), chord(:G3, :m7))
+  
+  # Change chords every 2 bars smoothly
+  chord_idx = (bar / 2) % 4
+  current_chord = prog[chord_idx]
+  
+  case pat
+  when 0 # Original: Long atmospheric chords
+    2.times do
+      current_chord.each { |n| midi n, velocity: 70, sustain: 1.8 }
+      sleep 2.0
+    end
+    
+  when 1 # Variation A: Rhythmic 8th-note pulse on root notes
+    root = current_chord[0]
+    8.times do
+      midi root, velocity: 85, sustain: 0.2
+      sleep 0.5
+    end
+    
+  when 2 # Variation B: Arpeggiated rolling chords
+    8.times do |j|
+      midi current_chord[j % current_chord.length], velocity: 75, sustain: 0.4
+      sleep 0.5
+    end
+    
+  when 3 # Variation C: Alternate darker chord progression
+    alt_prog = (ring chord(:C3, :m11), chord(:Ab2, :maj9), chord(:F2, :m7), chord(:G2, :m7))
+    alt_chord = alt_prog[chord_idx]
+    2.times do
+      alt_chord.each { |n| midi n, velocity: 70, sustain: 1.8 }
+      sleep 2.0
+    end
+  end
+end
+
 
 # ---------------------------------------------------------
 # ACID PLUCK (MIDI Channel 3)
