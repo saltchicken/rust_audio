@@ -364,6 +364,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "drum_plugin"
+version = "0.1.0"
+dependencies = [
+ "clack-plugin",
+ "plugin_core",
+ "serde",
+]
+
+[[package]]
 name = "either"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

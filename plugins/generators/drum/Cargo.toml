@@ -1,0 +1,12 @@
+[package]
+name = "drum_plugin"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+clack-plugin = "0.1"
+plugin_core = { path = "../../core" }
+serde = { version = "1.0", features = ["derive"] }
