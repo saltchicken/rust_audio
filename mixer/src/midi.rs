@@ -18,8 +18,11 @@ where
         let port_name = midi_in
             .port_name(port)
             .unwrap_or_else(|_| "Unknown USB Device".into());
-        
-        println!("✅ Bound to MIDI: {} (Listening on All Channels)\r", port_name);
+
+        println!(
+            "✅ Bound to MIDI: {} (Listening on All Channels)\r",
+            port_name
+        );
 
         let conn = midi_in
             .connect(
@@ -35,7 +38,8 @@ where
 
                         if status_nibble == 0x90 && velocity > 0 {
                             on_message(MidiMsg::NoteOn(channel, note, normalized_vel));
-                        } else if status_nibble == 0x80 || (status_nibble == 0x90 && velocity == 0) {
+                        } else if status_nibble == 0x80 || (status_nibble == 0x90 && velocity == 0)
+                        {
                             on_message(MidiMsg::NoteOff(channel, note));
                         }
                     }

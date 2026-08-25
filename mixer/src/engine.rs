@@ -46,7 +46,11 @@ impl AudioEngine {
 
         let supported_config = output_device
             .supported_output_configs()?
-            .filter(|c| c.channels() == 2 && c.min_sample_rate() <= target_sr && c.max_sample_rate() >= target_sr)
+            .filter(|c| {
+                c.channels() == 2
+                    && c.min_sample_rate() <= target_sr
+                    && c.max_sample_rate() >= target_sr
+            })
             .min_by_key(|c| match c.buffer_size() {
                 cpal::SupportedBufferSize::Range { min, .. } => *min,
                 cpal::SupportedBufferSize::Unknown => u32::MAX,
@@ -109,7 +113,11 @@ impl AudioEngine {
             let target_sr = cpal::SampleRate(sample_rate);
             let supported_input_config = input_device
                 .supported_input_configs()?
-                .filter(|c| c.channels() == 2 && c.min_sample_rate() <= target_sr && c.max_sample_rate() >= target_sr)
+                .filter(|c| {
+                    c.channels() == 2
+                        && c.min_sample_rate() <= target_sr
+                        && c.max_sample_rate() >= target_sr
+                })
                 .min_by_key(|c| match c.buffer_size() {
                     cpal::SupportedBufferSize::Range { min, .. } => *min,
                     cpal::SupportedBufferSize::Unknown => u32::MAX,
@@ -123,7 +131,9 @@ impl AudioEngine {
 
             let mut input_stream_config: cpal::StreamConfig = supported_input_config.clone().into();
 
-            if let cpal::SupportedBufferSize::Range { min, max } = supported_input_config.buffer_size() {
+            if let cpal::SupportedBufferSize::Range { min, max } =
+                supported_input_config.buffer_size()
+            {
                 let desired = (*min).max(64).min(*max);
                 input_stream_config.buffer_size = cpal::BufferSize::Fixed(desired);
                 println!("⚡ Requested Input Buffer Size: {} frames\r", desired);
@@ -181,7 +191,7 @@ impl AudioEngine {
         println!("\r\n--- Initializing Tracks ---\r");
         for (idx, track_cfg) in self.config.track.iter().enumerate() {
             println!("👉 Track {}: '{}'\r", idx, track_cfg.name);
-            
+
             // Expose the track index to the plugins being loaded in this track via the environment
             std::env::set_var("CURRENT_TRACK_INDEX", idx.to_string());
 
@@ -251,7 +261,9 @@ impl AudioEngine {
                     match msg {
                         MidiMsg::NoteOn(ch, note, velocity) => {
                             for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
-                                if track_cfg.midi_channel.is_none() || track_cfg.midi_channel == Some(ch) {
+                                if track_cfg.midi_channel.is_none()
+                                    || track_cfg.midi_channel == Some(ch)
+                                {
                                     let event = NoteOnEvent::new(
                                         0,
                                         Pckn::new(0u16, ch as u16, note, 0u32),
@@ -263,8 +275,14 @@ impl AudioEngine {
                         }
                         MidiMsg::NoteOff(ch, note) => {
                             for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
-                                if track_cfg.midi_channel.is_none() || track_cfg.midi_channel == Some(ch) {
-                                    let event = NoteOffEvent::new(0, Pckn::new(0u16, ch as u16, note, 0u32), 0.0);
+                                if track_cfg.midi_channel.is_none()
+                                    || track_cfg.midi_channel == Some(ch)
+                                {
+                                    let event = NoteOffEvent::new(
+                                        0,
+                                        Pckn::new(0u16, ch as u16, note, 0u32),
+                                        0.0,
+                                    );
                                     tracks_events[track_idx].0.push(&event);
                                 }
                             }
@@ -282,7 +300,8 @@ impl AudioEngine {
                     for frame in 0..frames {
                         for ch in 0..channels {
                             if track_cfg.enable_live_input {
-                                intermediate_buffers[0][ch][frame] = interleaved_in[frame * channels + ch];
+                                intermediate_buffers[0][ch][frame] =
+                                    interleaved_in[frame * channels + ch];
                             } else {
                                 intermediate_buffers[0][ch][frame] = 0.0;
                             }
@@ -333,7 +352,8 @@ impl AudioEngine {
                     let final_buf = current_in_buf;
                     for frame in 0..frames {
                         for ch in 0..channels {
-                            data[frame * channels + ch] += intermediate_buffers[final_buf][ch][frame] * master_volume;
+                            data[frame * channels + ch] +=
+                                intermediate_buffers[final_buf][ch][frame] * master_volume;
                         }
                     }
                 }

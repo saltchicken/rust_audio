@@ -10,12 +10,12 @@ struct DelayConfig {
     // Legacy fixed times
     left_delay_ms: Option<f64>,
     right_delay_ms: Option<f64>,
-    
+
     // Tempo sync settings
     bpm: Option<f64>,
     left_delay_beats: Option<f64>,
     right_delay_beats: Option<f64>,
-    
+
     feedback: f32,
     mix: f32,
 }

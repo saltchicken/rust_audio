@@ -23,7 +23,7 @@ where
 {
     let config_path = get_cli_config_path();
     let config_str = fs::read_to_string(&config_path).unwrap_or_default();
-    
+
     // The host injects the track's index into the environment right before activation
     let track_idx_str = env::var("CURRENT_TRACK_INDEX").unwrap_or_default();
     let track_idx: usize = track_idx_str.parse().unwrap_or(0);
@@ -31,10 +31,7 @@ where
     if let Ok(global_cfg) = config_str.parse::<toml::Value>() {
         if let Some(tracks) = global_cfg.get("track").and_then(|t| t.as_array()) {
             if let Some(track) = tracks.get(track_idx) {
-                if let Some(plugin_data) = track
-                    .get("plugins")
-                    .and_then(|p| p.get(plugin_name))
-                {
+                if let Some(plugin_data) = track.get("plugins").and_then(|p| p.get(plugin_name)) {
                     if let Ok(config) = plugin_data.clone().try_into::<T>() {
                         return config;
                     }

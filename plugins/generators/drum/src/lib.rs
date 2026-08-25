@@ -1,4 +1,4 @@
-use clack_plugin::events::event_types::{NoteOnEvent};
+use clack_plugin::events::event_types::NoteOnEvent;
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
@@ -46,9 +46,16 @@ struct DrumVoice {
 impl DrumVoice {
     fn new() -> Self {
         Self {
-            active: false, instrument: 0, phase: 0.0, env: 0.0,
-            env_decay: 0.0, pitch_env: 0.0, pitch_decay: 0.0,
-            velocity: 0.0, rng_state: 1, last_noise: 0.0,
+            active: false,
+            instrument: 0,
+            phase: 0.0,
+            env: 0.0,
+            env_decay: 0.0,
+            pitch_env: 0.0,
+            pitch_decay: 0.0,
+            velocity: 0.0,
+            rng_state: 1,
+            last_noise: 0.0,
         }
     }
 
@@ -59,21 +66,26 @@ impl DrumVoice {
         self.phase = 0.0;
         self.env = 1.0;
         self.pitch_env = 1.0;
-        
+
         // Calculate exponential decay multipliers (time to reach ~1%)
         self.env_decay = (-4.6 / ((decay_ms / 1000.0) * sample_rate)).exp();
-        
+
         let pitch_drop_time = if instrument == 0 { 0.05 } else { 0.1 };
         self.pitch_decay = (-4.6 / (pitch_drop_time * sample_rate)).exp();
     }
 
     fn next_noise(&mut self) -> f32 {
-        self.rng_state = self.rng_state.wrapping_mul(1664525).wrapping_add(1013904223);
+        self.rng_state = self
+            .rng_state
+            .wrapping_mul(1664525)
+            .wrapping_add(1013904223);
         (self.rng_state as f32 / u32::MAX as f32) * 2.0 - 1.0
     }
 
     fn process(&mut self, sample_rate: f32) -> f32 {
-        if !self.active { return 0.0; }
+        if !self.active {
+            return 0.0;
+        }
 
         self.env *= self.env_decay;
         if self.env < 0.001 {
@@ -84,25 +96,29 @@ impl DrumVoice {
         let mut out = 0.0;
 
         match self.instrument {
-            0 => { // Kick: Fast pitch dropping Sine wave
+            0 => {
+                // Kick: Fast pitch dropping Sine wave
                 self.pitch_env *= self.pitch_decay;
                 let freq = 50.0 + 300.0 * self.pitch_env;
                 self.phase = (self.phase + freq / sample_rate).fract();
                 out = (self.phase * 2.0 * PI).sin() * self.env;
             }
-            1 => { // Snare: Noise + Fundamental Tone
+            1 => {
+                // Snare: Noise + Fundamental Tone
                 let noise = self.next_noise();
                 self.phase = (self.phase + 200.0 / sample_rate).fract();
                 let tone = (self.phase * 2.0 * PI).sin() * self.env * 0.3;
                 out = (noise * self.env * 0.7) + tone;
             }
-            2 => { // Hi-hat: Pseudo High-Pass Noise
+            2 => {
+                // Hi-hat: Pseudo High-Pass Noise
                 let noise = self.next_noise();
-                let hp = noise - self.last_noise; 
+                let hp = noise - self.last_noise;
                 self.last_noise = noise;
                 out = hp * self.env;
             }
-            3 | 4 | 5 => { // Toms: Modulated sine wave based on pitch class
+            3 | 4 | 5 => {
+                // Toms: Modulated sine wave based on pitch class
                 self.pitch_env *= self.pitch_decay;
                 let base_freq = match self.instrument {
                     3 => 90.0,  // Low Tom
@@ -140,9 +156,11 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate as f32;
         let max_frames = audio_config.max_frames_count as usize;
-        
+
         let mut voices = Vec::with_capacity(MAX_VOICES);
-        for _ in 0..MAX_VOICES { voices.push(DrumVoice::new()); }
+        for _ in 0..MAX_VOICES {
+            voices.push(DrumVoice::new());
+        }
 
         Ok(Self {
             voices,
@@ -162,22 +180,24 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
         if self.block_buffer.len() < frames {
             self.block_buffer.resize(frames, 0.0);
         }
-        for i in 0..frames { self.block_buffer[i] = 0.0; }
+        for i in 0..frames {
+            self.block_buffer[i] = 0.0;
+        }
 
         for event in events.input {
             if let Some(note_on) = event.as_event::<NoteOnEvent>() {
                 if let clack_plugin::events::Match::Specific(k) = note_on.key() {
                     let key = k as i16;
                     let vel = note_on.velocity() as f32;
-                    
+
                     // Map standard MIDI notes to our drums
                     let (inst, decay) = match key {
-                        36 => (0, self.config.kick_decay_ms),   // C1  - Kick
-                        38 => (1, self.config.snare_decay_ms),  // D1  - Snare
-                        42 => (2, self.config.hihat_decay_ms),  // F#1 - Hi-hat
-                        43 => (3, self.config.tom_decay_ms),    // G1  - Low Tom
-                        47 => (4, self.config.tom_decay_ms),    // B1  - Mid Tom
-                        50 => (5, self.config.tom_decay_ms),    // D2  - High Tom
+                        36 => (0, self.config.kick_decay_ms),  // C1  - Kick
+                        38 => (1, self.config.snare_decay_ms), // D1  - Snare
+                        42 => (2, self.config.hihat_decay_ms), // F#1 - Hi-hat
+                        43 => (3, self.config.tom_decay_ms),   // G1  - Low Tom
+                        47 => (4, self.config.tom_decay_ms),   // B1  - Mid Tom
+                        50 => (5, self.config.tom_decay_ms),   // D2  - High Tom
                         _ => continue,
                     };
 
