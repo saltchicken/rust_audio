@@ -1,51 +1,49 @@
 stack(
   // ---------------------------------------------------------
-  // DRUM MACHINE (Rust Ch 9 = Strudel Ch 10)
-  // Driving 4-on-the-floor Electro/Synthwave beat
-  // C1 = Kick (36) | D1 = Snare (38) | Gb1 = Hat (42) | Toms (50, 47, 43)
+  // GENERATIVE DRUM MACHINE (Rust Ch 9 = Strudel Ch 10)
+  // Sparse, drifting rhythm to feed into the heavy reverb
   // ---------------------------------------------------------
   stack(
-    // Kick: Relentless 4/4 with a syncopated skip on the 4th bar
-    note("<[36*4]!3 [36 36 ~ 36]>"),
+    // Kick: Drifting, sparse 808-style pulses
+    note("<[36 ~ ~ ~] [~ ~ 36 ~] [36 ~ ~ ~] [~ ~ ~ ~]>"),
     
-    // Snare: Solid on the 2 and 4, tight 16th-note fill on the 4th bar
-    note("<[~ 38 ~ 38]!3 [~ 38 38*4]>"), 
+    // Snare: Occasional distant rim knocks
+    note("<[~ ~ ~ ~] [~ ~ 38 ~] [~ ~ ~ ~] [~ ~ ~ 38]>"), 
     
-    // Hats: Driving 16th notes with open hi-hat grooves at the end
-    note("<[42*8]!3 [42*4 [42 ~ 42 ~]*2]>"), 
+    // Hats: Bouncing off-beats that act like rain drops
+    note("<[~ 42 ~ 42] [~ 42 42 ~] [42 ~ ~ 42] [42 42 42 ~]>"), 
     
-    // Toms: Big tom fill rolling down on the 4th bar
-    note("<~!3 [~ ~ 50 [47 43]]>")
+    // Toms: Deep sparse low tom rolls
+    note("<~ ~ ~ [~ ~ 43 43]>")
     
   ).midichan(10).midi(),
 
   // ---------------------------------------------------------
-  // SYNTH LEAD MELODY (Rust Ch 0 = Strudel Ch 1)
-  // Catchy, syncopated Cyberpunk hook in A minor
+  // AMBIENT SWELLS (Rust Ch 0 = Strudel Ch 1)
+  // Very slow, overlapping chords. The rests (~) allow the 
+  // 4000ms envelope release to ring out endlessly.
   // ---------------------------------------------------------
-  note("<[~ a4 ~ c5 e5 ~ d5 ~] [~ a4 ~ c5 g5 ~ e5 ~] [~ a4 ~ c5 e5 ~ d5 ~] [~ c5 b4 ~ a4 ~ ~ ~]>")
+  note("<[c4,g4,eb5] ~ [eb4,bb4,f5] ~ [f4,c5,g5] ~ [g4,d5,a5] ~>/2")
     .midichan(1).midi(),
 
   // ---------------------------------------------------------
-  // BASS LINE (Rust Ch 1 = Strudel Ch 2)
-  // Rolling 16th-note sequence, classic octave-jumping disco/electro bass
+  // SUB DRONE (Rust Ch 1 = Strudel Ch 2)
+  // Slow moving root notes sitting underneath the swells
   // ---------------------------------------------------------
-  note("a1")
-    .struct("<[x*16]!3 [x*8 [x ~ x ~]*2]>")
-    .add(note("<[0 12]*8>")) // Constant octave bouncing
-    .add(note("<0!3 -2>"))    // Root progression: A minor for 3 bars, G major for the 4th
+  note("<c2 ~ eb1 ~ f1 ~ g1 ~>/2")
     .midichan(2).midi(),
 
   // ---------------------------------------------------------
-  // ACID PLUCK (Rust Ch 2 = Strudel Ch 3)
-  // Fast, polyrhythmic 16th note arpeggio sweeping through chords
+  // GENERATIVE PLUCKS (Rust Ch 2 = Strudel Ch 3)
+  // Rapid, shifting arpeggios that bounce through the ping-pong delay
   // ---------------------------------------------------------
-  note("a3")
-    .struct("<[x ~ x x] [~ x x ~] [x x ~ x] [~ x ~ x]>*2")
-    .add(note("<0 3 7 10 12 7 3 0>/4")) // Sweeping through Amin7 chord intervals
+  note("c4")
+    .struct("<[~ x]*4 [x*8] [~ x x ~] [[x ~ x ~] [~ x ~ x]]>/2")
+    .add(note("<0 3 7 10>/4")) // Shifting intervals
+    .add(note("<12 0 12 24>/2")) // Occasional octave jumps
     .midichan(3).midi()
 
 // ---------------------------------------------------------
-// TEMPO: Upbeat 130 BPM for high energy
+// TEMPO: Slowed down for an ambient, drifting feel
 // ---------------------------------------------------------
-).cpm(130/4)
+).cpm(85/4)

@@ -1,49 +1,51 @@
 stack(
   // ---------------------------------------------------------
-  // GENERATIVE DRUM MACHINE (Rust Ch 9 = Strudel Ch 10)
-  // Sparse, drifting rhythm to feed into the heavy reverb
+  // DRUM MACHINE (Rust Ch 9 = Strudel Ch 10)
+  // 36: Kick, 38: Snare, 42: Hi-hat, 43/47/50: Toms
   // ---------------------------------------------------------
   stack(
-    // Kick: Drifting, sparse 808-style pulses
-    note("<[36 ~ ~ ~] [~ ~ 36 ~] [36 ~ ~ ~] [~ ~ ~ ~]>"),
+    // Bar 1 & 3: Tresillo syncopation | Bar 2 & 4: 4-on-the-floor
+    note("<36(3,8) 36!4 36(3,8) 36!4>"), 
     
-    // Snare: Occasional distant rim knocks
-    note("<[~ ~ ~ ~] [~ ~ 38 ~] [~ ~ ~ ~] [~ ~ ~ 38]>"), 
+    // Classic off-beat 8th note hats
+    note("[~ 42]*4"),                    
     
-    // Hats: Bouncing off-beats that act like rain drops
-    note("<[~ 42 ~ 42] [~ 42 42 ~] [42 ~ ~ 42] [42 42 42 ~]>"), 
+    // Snare on 2 & 4, with a trap-style triplet roll on the 4th bar
+    note("~ 38 ~ <38 38 38 [38*3]>"),    
     
-    // Toms: Deep sparse low tom rolls
-    note("<~ ~ ~ [~ ~ 43 43]>")
-    
+    // Descending tom fill dropping in every 4th bar
+    note("<~ ~ ~ [50 47 43*2]>")         
   ).midichan(10).midi(),
 
+
   // ---------------------------------------------------------
-  // AMBIENT SWELLS (Rust Ch 0 = Strudel Ch 1)
-  // Very slow, overlapping chords. The rests (~) allow the 
-  // 4000ms envelope release to ring out endlessly.
+  // SYNTH LEAD (Rust Ch 0 = Strudel Ch 1)
+  // Utilizing the 16-Voice Polyphony for Dub Techno Chords
   // ---------------------------------------------------------
-  note("<[c4,g4,eb5] ~ [eb4,bb4,f5] ~ [f4,c5,g5] ~ [g4,d5,a5] ~>/2")
+  note("<[a4,c5,e5] [f4,a4,c5] [c4,e4,g4] [g4,b4,d5]>")
+    // Syncopated rhythmic gates to let the delay/reverb tails breathe
+    .struct("<x(3,8) x(3,8,2) x(5,8) [~ x*2 ~ x]>") 
     .midichan(1).midi(),
 
+
   // ---------------------------------------------------------
-  // SUB DRONE (Rust Ch 1 = Strudel Ch 2)
-  // Slow moving root notes sitting underneath the swells
+  // BASS LINE (Rust Ch 1 = Strudel Ch 2)
+  // Fat Analog Saw + Sub. Rolling 16th-note bouncing bass
   // ---------------------------------------------------------
-  note("<c2 ~ eb1 ~ f1 ~ g1 ~>/2")
+  note("<a1 f1 c1 g1>")
+    // Adds a +12 semitone (1 octave) jump rhythmically over a 16th note grid
+    .add(note("<[0 0 12 0]*4 [0 12 0 0]*4 [0 0 0 12]*4 [0 12 0 12]*4>"))
     .midichan(2).midi(),
 
+
   // ---------------------------------------------------------
-  // GENERATIVE PLUCKS (Rust Ch 2 = Strudel Ch 3)
-  // Rapid, shifting arpeggios that bounce through the ping-pong delay
+  // ACID PLUCK (Rust Ch 2 = Strudel Ch 3)
+  // Arpeggiating counter-melody utilizing the fast filter zap
   // ---------------------------------------------------------
-  note("c4")
-    .struct("<[~ x]*4 [x*8] [~ x x ~] [[x ~ x ~] [~ x ~ x]]>/2")
-    .add(note("<0 3 7 10>/4")) // Shifting intervals
-    .add(note("<12 0 12 24>/2")) // Occasional octave jumps
+  note("<[a2 c3 e3 a3] [f2 a2 c3 f3] [c2 e2 g2 c3] [g2 b2 d3 g3]>")
+    .fast(4) // Runs the 4 notes above 4 times per bar (16th notes)
+    // Euclidean gating to create a complex, evolving groove
+    .struct("<x(11,16) x(9,16) x*16 [~ x]*8>") 
     .midichan(3).midi()
 
-// ---------------------------------------------------------
-// TEMPO: Slowed down for an ambient, drifting feel
-// ---------------------------------------------------------
-).cpm(85/4)
+).cpm(128/4)
