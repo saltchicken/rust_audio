@@ -148,9 +148,11 @@ filter_release_ms = 40.0
 volume = 0.1
 
 [track.plugins.delay]
-# Uneven left/right delays create a bouncing, syncopated rhythm
-left_delay_ms = 375.0 
-right_delay_ms = 250.0 
+bpm = 120
+left_delay_beats = 0.75
+right_delay_beats = 0.50
+# left_delay_ms = 375.0
+# right_delay_ms = 250.0
 feedback = 0.5
 mix = 0.45
 

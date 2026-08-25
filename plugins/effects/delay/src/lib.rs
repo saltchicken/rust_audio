@@ -7,8 +7,15 @@ use serde::Deserialize;
 #[derive(Deserialize, Clone)]
 #[serde(default)]
 struct DelayConfig {
-    left_delay_ms: f64,
-    right_delay_ms: f64,
+    // Legacy fixed times
+    left_delay_ms: Option<f64>,
+    right_delay_ms: Option<f64>,
+    
+    // Tempo sync settings
+    bpm: Option<f64>,
+    left_delay_beats: Option<f64>,
+    right_delay_beats: Option<f64>,
+    
     feedback: f32,
     mix: f32,
 }
@@ -16,8 +23,11 @@ struct DelayConfig {
 impl Default for DelayConfig {
     fn default() -> Self {
         Self {
-            left_delay_ms: 400.0,
-            right_delay_ms: 530.0,
+            left_delay_ms: Some(400.0),
+            right_delay_ms: Some(530.0),
+            bpm: None,
+            left_delay_beats: None,
+            right_delay_beats: None,
             feedback: 0.65,
             mix: 0.5,
         }
@@ -69,9 +79,21 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
         let sr = audio_config.sample_rate;
         let config = load_plugin_config::<DelayConfig>("delay");
 
+        // Helper closure to calculate final MS
+        let calc_ms = |beats: Option<f64>, ms: Option<f64>, bpm: Option<f64>| -> f64 {
+            if let (Some(b), Some(tempo)) = (beats, bpm) {
+                b * (60000.0 / tempo)
+            } else {
+                ms.unwrap_or(400.0) // Fallback
+            }
+        };
+
+        let left_ms = calc_ms(config.left_delay_beats, config.left_delay_ms, config.bpm);
+        let right_ms = calc_ms(config.right_delay_beats, config.right_delay_ms, config.bpm);
+
         let channels = vec![
-            EchoDelay::new(sr, config.left_delay_ms, config.feedback, config.mix),
-            EchoDelay::new(sr, config.right_delay_ms, config.feedback, config.mix),
+            EchoDelay::new(sr, left_ms, config.feedback, config.mix),
+            EchoDelay::new(sr, right_ms, config.feedback, config.mix),
         ];
 
         Ok(Self { channels })
