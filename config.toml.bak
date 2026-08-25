@@ -15,11 +15,10 @@ plugin_chain = [
 
 [track.plugins.drum]
 volume = 0.8
-# Tightened decays for faster tempo
-kick_decay_ms = 180.0
-snare_decay_ms = 120.0
-hihat_decay_ms = 40.0
-tom_decay_ms = 150.0
+kick_decay_ms = 450.0
+snare_decay_ms = 220.0
+hihat_decay_ms = 90.0
+tom_decay_ms = 350.0
 
 
 [[track]]
@@ -38,14 +37,14 @@ plugin_chain = [
 
 [track.plugins.synth]
 attack_ms = 5.0
-release_ms = 10.0 # Shortened to prevent overlapping notes
+release_ms = 15.0
 volume = 0.15
 
 [track.plugins.compressor]
 threshold_db = -18.0
 ratio = 4.0
 attack_ms = 5.0
-release_ms = 35.0 # Faster release to recover quickly
+release_ms = 60.0
 makeup_gain_db = 4.5
 
 [track.plugins.amp]
@@ -66,8 +65,8 @@ mix = 1.0
 [track.plugins.delay]
 left_delay_ms = 400.0
 right_delay_ms = 530.0
-feedback = 0.3 # Reduced to prevent clutter
-mix = 0.3      # Pulled back into the mix
+feedback = 0.65
+mix = 0.5
 
 [track.plugins.reverb]
 comb_lengths = [1557.0, 1617.0, 1491.0, 1422.0]
@@ -77,8 +76,8 @@ comb_dampening = 0.2
 allpass_feedback = 0.5
 left_spread = 0
 right_spread = 23
-mix = 0.2      # Drier mix for clarity
-wet_scale = 0.08
+mix = 0.4
+wet_scale = 0.15
 
 
 [[track]]
@@ -96,22 +95,22 @@ plugin_chain = [
 waveform = 0 # 0 = Sawtooth, 1 = Square
 sub_mix = 0.5 # 50% Main wave, 50% Sub-osc Sine
 amp_attack_ms = 5.0
-amp_decay_ms = 100.0   # Snappier decay
+amp_decay_ms = 150.0
 amp_sustain = 0.5
-amp_release_ms = 15.0  # Much shorter release
+amp_release_ms = 45.0
 filter_cutoff_hz = 150.0
 filter_env_mod_hz = 1200.0
 filter_attack_ms = 10.0
-filter_decay_ms = 60.0 # Faster filter close
+filter_decay_ms = 100.0
 filter_sustain = 0.2
-filter_release_ms = 20.0
+filter_release_ms = 60.0
 volume = 0.1
 
 [track.plugins.compressor]
 threshold_db = -24.0
 ratio = 6.0
 attack_ms = 15.0
-release_ms = 40.0 # Recover fast for 16th notes
+release_ms = 80.0
 makeup_gain_db = 5.5
 
 [track.plugins.amp]
@@ -123,7 +122,6 @@ level = 0.7
 low_cut_hz = 35.0
 high_cut_hz = 1200.0
 resonance = 0.4
-
 
 [[track]]
 name = "Acid Pluck"
@@ -139,23 +137,25 @@ plugin_chain = [
 waveform = 1 # Square wave for a hollow, edgy tone
 sub_mix = 0.0 # Turn off the sub-oscillator for this higher-register part
 amp_attack_ms = 2.0
-amp_decay_ms = 100.0   # Tighter decay
+amp_decay_ms = 250.0
 amp_sustain = 0.0 # Pluck style - no sustain
-amp_release_ms = 15.0  # Choke the note quickly
+amp_release_ms = 40.0
 filter_cutoff_hz = 200.0
-filter_env_mod_hz = 3500.0 
+filter_env_mod_hz = 3500.0 # Wide, fast filter sweep for the "zap"
 filter_attack_ms = 2.0
-filter_decay_ms = 70.0 # Quick filter zap
+filter_decay_ms = 120.0 # Fast close on the filter
 filter_sustain = 0.0
-filter_release_ms = 15.0
+filter_release_ms = 40.0
 volume = 0.1
 
 [track.plugins.delay]
-bpm = 115 # Synced to new tempo
+bpm = 120
 left_delay_beats = 0.75
 right_delay_beats = 0.50
-feedback = 0.25 # Kept low for clarity
-mix = 0.25
+# left_delay_ms = 375.0
+# right_delay_ms = 250.0
+feedback = 0.5
+mix = 0.45
 
 [track.plugins.reverb]
 comb_lengths = [1557.0, 1617.0, 1491.0, 1422.0]
@@ -165,5 +165,5 @@ comb_dampening = 0.4
 allpass_feedback = 0.5
 left_spread = 15
 right_spread = 25
-mix = 0.3       # Very subtle reverb
-wet_scale = 0.05
+mix = 1.0
+wet_scale = 0.15
