@@ -1,0 +1,51 @@
+stack(
+  // ---------------------------------------------------------
+  // DRUM MACHINE (Rust Ch 9 = Strudel Ch 10)
+  // Driving 4-on-the-floor Electro/Synthwave beat
+  // C1 = Kick (36) | D1 = Snare (38) | Gb1 = Hat (42) | Toms (50, 47, 43)
+  // ---------------------------------------------------------
+  stack(
+    // Kick: Relentless 4/4 with a syncopated skip on the 4th bar
+    note("<[36*4]!3 [36 36 ~ 36]>"),
+    
+    // Snare: Solid on the 2 and 4, tight 16th-note fill on the 4th bar
+    note("<[~ 38 ~ 38]!3 [~ 38 38*4]>"), 
+    
+    // Hats: Driving 16th notes with open hi-hat grooves at the end
+    note("<[42*8]!3 [42*4 [42 ~ 42 ~]*2]>"), 
+    
+    // Toms: Big tom fill rolling down on the 4th bar
+    note("<~!3 [~ ~ 50 [47 43]]>")
+    
+  ).midichan(10).midi(),
+
+  // ---------------------------------------------------------
+  // SYNTH LEAD MELODY (Rust Ch 0 = Strudel Ch 1)
+  // Catchy, syncopated Cyberpunk hook in A minor
+  // ---------------------------------------------------------
+  note("<[~ a4 ~ c5 e5 ~ d5 ~] [~ a4 ~ c5 g5 ~ e5 ~] [~ a4 ~ c5 e5 ~ d5 ~] [~ c5 b4 ~ a4 ~ ~ ~]>")
+    .midichan(1).midi(),
+
+  // ---------------------------------------------------------
+  // BASS LINE (Rust Ch 1 = Strudel Ch 2)
+  // Rolling 16th-note sequence, classic octave-jumping disco/electro bass
+  // ---------------------------------------------------------
+  note("a1")
+    .struct("<[x*16]!3 [x*8 [x ~ x ~]*2]>")
+    .add(note("<[0 12]*8>")) // Constant octave bouncing
+    .add(note("<0!3 -2>"))    // Root progression: A minor for 3 bars, G major for the 4th
+    .midichan(2).midi(),
+
+  // ---------------------------------------------------------
+  // ACID PLUCK (Rust Ch 2 = Strudel Ch 3)
+  // Fast, polyrhythmic 16th note arpeggio sweeping through chords
+  // ---------------------------------------------------------
+  note("a3")
+    .struct("<[x ~ x x] [~ x x ~] [x x ~ x] [~ x ~ x]>*2")
+    .add(note("<0 3 7 10 12 7 3 0>/4")) // Sweeping through Amin7 chord intervals
+    .midichan(3).midi()
+
+// ---------------------------------------------------------
+// TEMPO: Upbeat 130 BPM for high energy
+// ---------------------------------------------------------
+).cpm(130/4)
