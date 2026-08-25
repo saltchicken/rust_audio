@@ -5,7 +5,6 @@ use std::fs;
 
 // --- 1. Global Configuration Extractor ---
 
-// Helper to read the host's CLI args from within the plugin
 fn get_cli_config_path() -> String {
     let args: Vec<String> = env::args().collect();
     let mut i = 1;
@@ -24,31 +23,27 @@ where
 {
     let config_path = get_cli_config_path();
     let config_str = fs::read_to_string(&config_path).unwrap_or_default();
+    
+    // The host injects the track's preset name into the environment right before activation
+    let global_name = env::var("CURRENT_TRACK_PRESET").unwrap_or_default();
 
-    // Parse as an untyped toml Value to navigate dynamically
     if let Ok(global_cfg) = config_str.parse::<toml::Value>() {
-        if let Some(global_name) = global_cfg
-            .get("active_global_preset")
-            .and_then(|v| v.as_str())
-        {
-            if !global_name.is_empty() {
-                if let Some(preset_data) = global_cfg
-                    .get("global_presets")
-                    .and_then(|p| p.get(global_name))
-                    .and_then(|g| g.get(plugin_name))
-                {
-                    // Attempt to deserialize the specific section into the requested struct
-                    if let Ok(config) = preset_data.clone().try_into::<T>() {
-                        return config;
-                    }
+        if !global_name.is_empty() {
+            if let Some(preset_data) = global_cfg
+                .get("global_presets")
+                .and_then(|p| p.get(&global_name))
+                .and_then(|g| g.get(plugin_name))
+            {
+                if let Ok(config) = preset_data.clone().try_into::<T>() {
+                    return config;
                 }
             }
         }
     }
 
     println!(
-        "Warning: Global preset for '{}' not found or missing section, using default.",
-        plugin_name
+        "Warning: Preset '{}' for '{}' not found, using default.",
+        global_name, plugin_name
     );
     T::default()
 }
@@ -75,8 +70,6 @@ pub fn process_f32_channels(
                     process_channel(ch_idx, input, output);
                 }
                 ChannelPair::InPlace(buf) => {
-                    // Eliminate heap allocation (buf.to_vec()) in the real-time audio thread.
-                    // Process in chunks utilizing a stack-allocated buffer.
                     const CHUNK_SIZE: usize = 4096;
                     let mut tmp = [0.0f32; CHUNK_SIZE];
                     for chunk in buf.chunks_mut(CHUNK_SIZE) {

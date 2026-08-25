@@ -88,7 +88,6 @@ impl AudioEngine {
         let mut opt_consumer = None;
         let mut _input_stream_guard = None;
 
-        // Check if ANY track has live input enabled
         let any_live_input = self.config.track.iter().any(|t| t.enable_live_input);
 
         if any_live_input {
@@ -173,7 +172,6 @@ impl AudioEngine {
             max_frames_count: max_frames as u32,
         };
 
-        // Arrays to hold instantiated track state
         let mut all_plugin_entries = Vec::new();
         let mut all_plugin_instances = Vec::new();
         let mut tracks_processors = Vec::new();
@@ -182,13 +180,18 @@ impl AudioEngine {
         let mut input_ports_vec = Vec::new();
         let mut output_ports_vec = Vec::new();
 
-        println!("\r\n--- Initializing Tracks ---");
+        println!("\r\n--- Initializing Tracks ---\r");
         for (idx, track_cfg) in self.config.track.iter().enumerate() {
-            println!("👉 Track {}: '{}'", idx, track_cfg.name);
+            println!("👉 Track {}: '{}'\r", idx, track_cfg.name);
+            
+            // Expose the preset to the plugins being loaded in this track via the environment
+            let preset = track_cfg.active_preset.as_deref().unwrap_or("");
+            std::env::set_var("CURRENT_TRACK_PRESET", preset);
+
             let mut processors = Vec::new();
 
             for plugin_path in &track_cfg.plugin_chain {
-                println!("   ✅ Loading: {}", plugin_path);
+                println!("   ✅ Loading: {}\r", plugin_path);
                 let entry = unsafe { PluginEntry::load(plugin_path) }?;
                 let factory = entry.get_plugin_factory().expect("No plugin factory found");
                 let descriptor = factory
@@ -204,6 +207,7 @@ impl AudioEngine {
                     &host_info,
                 )?;
 
+                // The plugin core will read CURRENT_TRACK_PRESET during activation
                 let stopped_processor = plugin_instance.activate(|_, _| (), audio_config)?;
                 let audio_processor = stopped_processor
                     .start_processing()
@@ -234,7 +238,6 @@ impl AudioEngine {
                 let samples_to_read = data.len();
                 let frames = samples_to_read / channels;
 
-                // 1. Pull hardware live input from the ringbuffer once
                 if let Some(consumer) = &mut opt_consumer {
                     let read = consumer.pop_slice(&mut interleaved_in[..samples_to_read]);
                     interleaved_in[read..samples_to_read].fill(0.0);
@@ -242,15 +245,12 @@ impl AudioEngine {
                     interleaved_in[..samples_to_read].fill(0.0);
                 }
 
-                // 2. Clear master output buffer
                 data.fill(0.0);
 
-                // 3. Clear all track input event buffers
                 for (in_ev, _) in &mut tracks_events {
                     in_ev.clear();
                 }
 
-                // 4. Route incoming MIDI to the correct track buffers
                 while let Some(msg) = midi_rx.pop() {
                     match msg {
                         MidiMsg::NoteOn(ch, note, velocity) => {
@@ -276,7 +276,6 @@ impl AudioEngine {
                     }
                 }
 
-                // 5. Process each track independently
                 for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
                     let processors = &mut tracks_processors[track_idx];
                     let (input_events_buffer, output_events_buffer) = &mut tracks_events[track_idx];
@@ -284,7 +283,6 @@ impl AudioEngine {
                     let input_ports = &mut input_ports_vec[track_idx];
                     let output_ports = &mut output_ports_vec[track_idx];
 
-                    // Seed track's first buffer with live hardware input (if enabled)
                     for frame in 0..frames {
                         for ch in 0..channels {
                             if track_cfg.enable_live_input {
@@ -297,7 +295,6 @@ impl AudioEngine {
 
                     let mut current_in_buf = 0;
 
-                    // Run the track's plugin chain
                     for audio_processor in processors.iter_mut() {
                         let [ref mut buf_0, ref mut buf_1] = intermediate_buffers;
                         let (in_buf, out_buf) = if current_in_buf == 0 {
@@ -337,7 +334,6 @@ impl AudioEngine {
                         current_in_buf = 1 - current_in_buf;
                     }
 
-                    // Sum the track's final output buffer into the master output buffer
                     let final_buf = current_in_buf;
                     for frame in 0..frames {
                         for ch in 0..channels {
@@ -346,7 +342,6 @@ impl AudioEngine {
                     }
                 }
 
-                // 6. Hard clip the master output to prevent digital distortion
                 for sample in data.iter_mut() {
                     *sample = sample.clamp(-1.0, 1.0);
                 }
