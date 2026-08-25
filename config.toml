@@ -6,6 +6,21 @@ input_device = "default"
 output_device = "default"
 
 [[track]]
+name = "Drum Machine"
+midi_channel = 9
+enable_live_input = false
+plugin_chain = [
+  "target/release/libdrum_plugin.so"
+]
+
+[track.plugins.drum]
+volume = 0.8
+kick_decay_ms = 450.0
+snare_decay_ms = 220.0
+hihat_decay_ms = 90.0
+
+
+[[track]]
 name = "Synth Lead"
 midi_channel = 0
 enable_live_input = false
@@ -65,21 +80,6 @@ wet_scale = 0.15
 
 
 [[track]]
-name = "Drum Machine"
-midi_channel = 9
-enable_live_input = false
-plugin_chain = [
-  "target/release/libdrum_plugin.so"
-]
-
-[track.plugins.drum]
-volume = 0.8
-kick_decay_ms = 450.0
-snare_decay_ms = 220.0
-hihat_decay_ms = 90.0
-
-
-[[track]]
 name = "Bass Line"
 midi_channel = 1
 enable_live_input = false
@@ -103,7 +103,7 @@ filter_attack_ms = 10.0
 filter_decay_ms = 100.0
 filter_sustain = 0.2
 filter_release_ms = 60.0
-volume = 0.2
+volume = 0.1
 
 [track.plugins.compressor]
 threshold_db = -24.0
@@ -121,3 +121,46 @@ level = 0.7
 low_cut_hz = 35.0
 high_cut_hz = 1200.0
 resonance = 0.4
+
+[[track]]
+name = "Acid Pluck"
+midi_channel = 2
+enable_live_input = false
+plugin_chain = [
+  "target/release/libbass_plugin.so",
+  "target/release/libdelay_clap_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.bass]
+waveform = 1 # Square wave for a hollow, edgy tone
+sub_mix = 0.0 # Turn off the sub-oscillator for this higher-register part
+amp_attack_ms = 2.0
+amp_decay_ms = 250.0
+amp_sustain = 0.0 # Pluck style - no sustain
+amp_release_ms = 40.0
+filter_cutoff_hz = 200.0
+filter_env_mod_hz = 3500.0 # Wide, fast filter sweep for the "zap"
+filter_attack_ms = 2.0
+filter_decay_ms = 120.0 # Fast close on the filter
+filter_sustain = 0.0
+filter_release_ms = 40.0
+volume = 0.1
+
+[track.plugins.delay]
+# Uneven left/right delays create a bouncing, syncopated rhythm
+left_delay_ms = 375.0 
+right_delay_ms = 250.0 
+feedback = 0.5
+mix = 0.45
+
+[track.plugins.reverb]
+comb_lengths = [1557.0, 1617.0, 1491.0, 1422.0]
+allpass_lengths = [225.0, 556.0]
+comb_feedback = 0.7
+comb_dampening = 0.4
+allpass_feedback = 0.5
+left_spread = 15
+right_spread = 25
+mix = 1.0
+wet_scale = 0.15
