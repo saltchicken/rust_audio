@@ -1,3 +1,4 @@
+use clack_plugin::events::event_types::MidiEvent;
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
@@ -38,33 +39,26 @@ impl CompressorChannel {
     }
 
     fn process(&mut self, input: f32, sample_rate: f32, config: &CompressorConfig) -> f32 {
-        // 1. Convert input peak to decibels (avoiding log10(0))
         let input_abs = input.abs().max(1e-5);
         let input_db = 20.0 * input_abs.log10();
 
-        // 2. Calculate target gain reduction in dB
         let mut target_gain_reduction_db = 0.0;
         if input_db > config.threshold_db {
             target_gain_reduction_db =
                 config.threshold_db - input_db + ((input_db - config.threshold_db) / config.ratio);
         }
 
-        // 3. Smooth the gain reduction with Attack/Release envelope
-        // We use a simple 1-pole filter to track the gain envelope
         let attack_coef = (-1.0 / (config.attack_ms * 0.001 * sample_rate)).exp();
         let release_coef = (-1.0 / (config.release_ms * 0.001 * sample_rate)).exp();
 
         if target_gain_reduction_db < self.envelope {
-            // Signal is getting louder -> compressing more -> use Attack
             self.envelope =
                 target_gain_reduction_db + attack_coef * (self.envelope - target_gain_reduction_db);
         } else {
-            // Signal is getting quieter -> compressing less -> use Release
             self.envelope = target_gain_reduction_db
                 + release_coef * (self.envelope - target_gain_reduction_db);
         }
 
-        // 4. Apply makeup gain and convert back to linear multiplier
         let total_gain_db = self.envelope + config.makeup_gain_db;
         let gain_linear = 10.0_f32.powf(total_gain_db / 20.0);
 
@@ -98,8 +92,24 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCompressorPluginAudioProcessor {
         &mut self,
         _process: Process,
         mut audio: Audio,
-        _events: Events,
+        events: Events,
     ) -> Result<ProcessStatus, PluginError> {
+        for event in events.input {
+            if let Some(midi) = event.as_event::<MidiEvent>() {
+                let data = midi.data();
+                if data.len() == 3 && (data[0] & 0xF0) == 0xB0 {
+                    let cc = data[1];
+                    let val = data[2] as f32 / 127.0;
+                    match cc {
+                        81 => self.config.threshold_db = -60.0 + val * 60.0,
+                        82 => self.config.ratio = 1.0 + val * 19.0,
+                        83 => self.config.makeup_gain_db = val * 24.0,
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         let config = &self.config;
 
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {

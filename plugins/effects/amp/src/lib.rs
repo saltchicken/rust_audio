@@ -1,3 +1,4 @@
+use clack_plugin::events::event_types::MidiEvent;
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
@@ -34,19 +35,12 @@ impl Amplifier {
     }
 
     fn process(&mut self, input: f32, drive: f32, tone: f32, level: f32) -> f32 {
-        // 1. Input Gain (Drive)
         let pre_gain = input * drive.max(0.1);
-
-        // 2. Non-linear saturation (Waveshaping)
-        // tanh provides classic symmetrical soft-clipping (analog tube/tape style)
         let saturated = pre_gain.tanh();
 
-        // 3. Simple 1-pole Low-Pass Filter for the Tone knob
-        // Map tone (0.0 - 1.0) to a smoothing factor (alpha)
         let alpha = 0.05 + (tone * 0.95);
         self.tone_state = self.tone_state + alpha * (saturated - self.tone_state);
 
-        // 4. Output Volume
         self.tone_state * level
     }
 }
@@ -75,8 +69,24 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyAmpPluginAudioProcessor {
         &mut self,
         _process: Process,
         mut audio: Audio,
-        _events: Events,
+        events: Events,
     ) -> Result<ProcessStatus, PluginError> {
+        for event in events.input {
+            if let Some(midi) = event.as_event::<MidiEvent>() {
+                let data = midi.data();
+                if data.len() == 3 && (data[0] & 0xF0) == 0xB0 {
+                    let cc = data[1];
+                    let val = data[2] as f32 / 127.0;
+                    match cc {
+                        70 => self.config.drive = 0.1 + val * 9.9,
+                        76 => self.config.tone = val,
+                        77 => self.config.level = val * 2.0,
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         let config = &self.config;
 
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {

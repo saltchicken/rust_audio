@@ -1,4 +1,4 @@
-use clack_plugin::events::event_types::{NoteOffEvent, NoteOnEvent};
+use clack_plugin::events::event_types::{MidiEvent, NoteOffEvent, NoteOnEvent};
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
@@ -28,7 +28,7 @@ impl Default for SynthConfig {
 
 struct MicroEnvelope {
     level: f32,
-    state: u8, // 0: Idle, 1: Attack, 2: Sustain, 3: Release
+    state: u8,
     attack_inc: f32,
     release_inc: f32,
 }
@@ -56,7 +56,6 @@ impl MicroEnvelope {
     fn process(&mut self) -> f32 {
         match self.state {
             1 => {
-                // Attack
                 self.level += self.attack_inc;
                 if self.level >= 1.0 {
                     self.level = 1.0;
@@ -64,7 +63,6 @@ impl MicroEnvelope {
                 }
             }
             3 => {
-                // Release
                 self.level -= self.release_inc;
                 if self.level <= 0.0 {
                     self.level = 0.0;
@@ -173,18 +171,15 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             self.block_buffer.resize(frames, 0.0);
         }
 
-        // Process events and audio sample-accurately
         let mut next_event = events.input.into_iter().peekable();
 
         for i in 0..frames {
             while let Some(event) = next_event.peek() {
-                // Access time through the event header
                 if event.header().time() as usize <= i {
                     if let Some(note_on) = event.as_event::<NoteOnEvent>() {
                         if let clack_plugin::events::Match::Specific(k) = note_on.key() {
                             let key = k as i16;
                             let vel = note_on.velocity() as f32;
-                            // Steal the quietest voice instead of always voice 0
                             let voice_idx = self.voices.iter().enumerate()
                                 .min_by(|a, b| a.1.env.level.partial_cmp(&b.1.env.level).unwrap())
                                 .map(|(idx, _)| idx).unwrap_or(0);
@@ -201,6 +196,18 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
                         } else {
                             for voice in self.voices.iter_mut() {
                                 voice.release();
+                            }
+                        }
+                    } else if let Some(midi) = event.as_event::<MidiEvent>() {
+                        let data = midi.data();
+                        if data.len() == 3 && (data[0] & 0xF0) == 0xB0 {
+                            let cc = data[1];
+                            let val = data[2] as f32 / 127.0;
+                            match cc {
+                                20 => self.config.attack_ms = 1.0 + val * 999.0,
+                                21 => self.config.release_ms = 1.0 + val * 1999.0,
+                                7 => self.config.volume = val,
+                                _ => {}
                             }
                         }
                     }

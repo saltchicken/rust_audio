@@ -1,4 +1,4 @@
-use clack_plugin::events::event_types::NoteOnEvent;
+use clack_plugin::events::event_types::{MidiEvent, NoteOnEvent};
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
@@ -32,7 +32,7 @@ impl Default for DrumConfig {
 
 struct DrumVoice {
     active: bool,
-    instrument: u8, // 0: Kick, 1: Snare, 2: Hi-hat, 3: Low Tom, 4: Mid Tom, 5: High Tom
+    instrument: u8,
     phase: f32,
     env: f32,
     env_decay: f32,
@@ -67,9 +67,7 @@ impl DrumVoice {
         self.env = 1.0;
         self.pitch_env = 1.0;
 
-        // Calculate exponential decay multipliers (time to reach ~1%)
         self.env_decay = (-4.6 / ((decay_ms / 1000.0) * sample_rate)).exp();
-
         let pitch_drop_time = if instrument == 0 { 0.05 } else { 0.1 };
         self.pitch_decay = (-4.6 / (pitch_drop_time * sample_rate)).exp();
     }
@@ -97,33 +95,29 @@ impl DrumVoice {
 
         match self.instrument {
             0 => {
-                // Kick: Fast pitch dropping Sine wave
                 self.pitch_env *= self.pitch_decay;
                 let freq = 50.0 + 300.0 * self.pitch_env;
                 self.phase = (self.phase + freq / sample_rate).fract();
                 out = (self.phase * 2.0 * PI).sin() * self.env;
             }
             1 => {
-                // Snare: Noise + Fundamental Tone
                 let noise = self.next_noise();
                 self.phase = (self.phase + 200.0 / sample_rate).fract();
                 let tone = (self.phase * 2.0 * PI).sin() * self.env * 0.3;
                 out = (noise * self.env * 0.7) + tone;
             }
             2 => {
-                // Hi-hat: Pseudo High-Pass Noise
                 let noise = self.next_noise();
                 let hp = noise - self.last_noise;
                 self.last_noise = noise;
                 out = hp * self.env;
             }
             3 | 4 | 5 => {
-                // Toms: Modulated sine wave based on pitch class
                 self.pitch_env *= self.pitch_decay;
                 let base_freq = match self.instrument {
-                    3 => 90.0,  // Low Tom
-                    4 => 130.0, // Mid Tom
-                    _ => 180.0, // High Tom
+                    3 => 90.0,
+                    4 => 130.0,
+                    _ => 180.0,
                 };
                 let freq = base_freq + (base_freq * 1.5) * self.pitch_env;
                 self.phase = (self.phase + freq / sample_rate).fract();
@@ -186,7 +180,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
 
         for i in 0..frames {
             while let Some(event) = next_event.peek() {
-                // Access time through the event header
                 if event.header().time() as usize <= i {
                     if let Some(note_on) = event.as_event::<NoteOnEvent>() {
                         if let clack_plugin::events::Match::Specific(k) = note_on.key() {
@@ -194,17 +187,16 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
                             let vel = note_on.velocity() as f32;
 
                             let drum_info = match key {
-                                36 => Some((0, self.config.kick_decay_ms)),  // C1
-                                38 => Some((1, self.config.snare_decay_ms)), // D1
-                                42 => Some((2, self.config.hihat_decay_ms)), // F#1
-                                43 => Some((3, self.config.tom_decay_ms)),   // G1
-                                47 => Some((4, self.config.tom_decay_ms)),   // B1
-                                50 => Some((5, self.config.tom_decay_ms)),   // D2
+                                36 => Some((0, self.config.kick_decay_ms)),  
+                                38 => Some((1, self.config.snare_decay_ms)), 
+                                42 => Some((2, self.config.hihat_decay_ms)), 
+                                43 => Some((3, self.config.tom_decay_ms)),   
+                                47 => Some((4, self.config.tom_decay_ms)),   
+                                50 => Some((5, self.config.tom_decay_ms)),   
                                 _ => None,
                             };
 
                             if let Some((inst, decay)) = drum_info {
-                                // Find inactive voice or steal the quietest one
                                 let voice_idx = self.voices.iter().position(|v| !v.active)
                                     .unwrap_or_else(|| {
                                         self.voices.iter().enumerate()
@@ -212,6 +204,19 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
                                             .map(|(idx, _)| idx).unwrap_or(0)
                                     });
                                 self.voices[voice_idx].trigger(inst, vel, decay, self.sample_rate);
+                            }
+                        }
+                    } else if let Some(midi) = event.as_event::<MidiEvent>() {
+                        let data = midi.data();
+                        if data.len() == 3 && (data[0] & 0xF0) == 0xB0 {
+                            let cc = data[1];
+                            let val = data[2] as f32 / 127.0;
+                            match cc {
+                                16 => self.config.kick_decay_ms = 50.0 + val * 950.0,
+                                17 => self.config.snare_decay_ms = 50.0 + val * 950.0,
+                                18 => self.config.hihat_decay_ms = 20.0 + val * 280.0,
+                                19 => self.config.tom_decay_ms = 50.0 + val * 950.0,
+                                _ => {}
                             }
                         }
                     }

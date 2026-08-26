@@ -1,3 +1,4 @@
+use clack_plugin::events::event_types::MidiEvent;
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
@@ -18,7 +19,7 @@ impl Default for CabConfig {
         Self {
             low_cut_hz: 100.0,
             high_cut_hz: 5000.0,
-            resonance: 0.707, // Butterworth Q
+            resonance: 0.707,
         }
     }
 }
@@ -26,25 +27,17 @@ impl Default for CabConfig {
 // --- 1. DSP Utilities: Biquad Filter ---
 
 struct Biquad {
-    b0: f64,
-    b1: f64,
-    b2: f64,
-    a1: f64,
-    a2: f64,
-    z1: f64,
-    z2: f64,
+    b0: f64, b1: f64, b2: f64,
+    a1: f64, a2: f64,
+    z1: f64, z2: f64,
 }
 
 impl Biquad {
     fn new() -> Self {
         Self {
-            b0: 1.0,
-            b1: 0.0,
-            b2: 0.0,
-            a1: 0.0,
-            a2: 0.0,
-            z1: 0.0,
-            z2: 0.0,
+            b0: 1.0, b1: 0.0, b2: 0.0,
+            a1: 0.0, a2: 0.0,
+            z1: 0.0, z2: 0.0,
         }
     }
 
@@ -101,7 +94,6 @@ impl CabChannel {
     }
 
     fn process(&mut self, input: f32, sample_rate: f64, config: &CabConfig) -> f32 {
-        // Update coefficients (In a production plugin, you'd only do this when parameters change)
         self.hpf
             .calculate_hpf(sample_rate, config.low_cut_hz, config.resonance);
         self.lpf
@@ -138,8 +130,24 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCabPluginAudioProcessor {
         &mut self,
         _process: Process,
         mut audio: Audio,
-        _events: Events,
+        events: Events,
     ) -> Result<ProcessStatus, PluginError> {
+        for event in events.input {
+            if let Some(midi) = event.as_event::<MidiEvent>() {
+                let data = midi.data();
+                if data.len() == 3 && (data[0] & 0xF0) == 0xB0 {
+                    let cc = data[1];
+                    let val = data[2] as f64 / 127.0;
+                    match cc {
+                        78 => self.config.low_cut_hz = 20.0 + val * 480.0,
+                        79 => self.config.high_cut_hz = 1000.0 + val * 9000.0,
+                        80 => self.config.resonance = 0.1 + val * 1.9,
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         let config = &self.config;
 
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {

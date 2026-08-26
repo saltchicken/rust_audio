@@ -4,6 +4,7 @@ use midir::{Ignore, MidiInput, MidiInputConnection};
 pub enum MidiMsg {
     NoteOn(u8, u8, f32, u64), // channel, note, velocity, timestamp_us
     NoteOff(u8, u8, u64),     // channel, note, timestamp_us
+    Cc(u8, u8, u8, u64),      // channel, controller, value, timestamp_us
 }
 
 pub fn connect_midi<F>(mut on_message: F) -> Option<MidiInputConnection<()>>
@@ -32,15 +33,16 @@ where
                     if message.len() >= 3 {
                         let status_nibble = message[0] & 0xF0;
                         let channel = message[0] & 0x0F;
-                        let note = message[1];
-                        let velocity = message[2];
-                        let normalized_vel = velocity as f32 / 127.0;
+                        let note_or_cc = message[1];
+                        let velocity_or_val = message[2];
+                        let normalized_vel = velocity_or_val as f32 / 127.0;
 
-                        if status_nibble == 0x90 && velocity > 0 {
-                            on_message(MidiMsg::NoteOn(channel, note, normalized_vel, stamp_us));
-                        } else if status_nibble == 0x80 || (status_nibble == 0x90 && velocity == 0)
-                        {
-                            on_message(MidiMsg::NoteOff(channel, note, stamp_us));
+                        if status_nibble == 0x90 && velocity_or_val > 0 {
+                            on_message(MidiMsg::NoteOn(channel, note_or_cc, normalized_vel, stamp_us));
+                        } else if status_nibble == 0x80 || (status_nibble == 0x90 && velocity_or_val == 0) {
+                            on_message(MidiMsg::NoteOff(channel, note_or_cc, stamp_us));
+                        } else if status_nibble == 0xB0 {
+                            on_message(MidiMsg::Cc(channel, note_or_cc, velocity_or_val, stamp_us));
                         }
                     }
                 },

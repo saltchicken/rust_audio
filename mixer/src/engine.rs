@@ -2,7 +2,7 @@ use crate::config::MixerConfig;
 use crate::host::MixerHost;
 use crate::midi::{connect_midi, MidiMsg};
 
-use clack_host::events::event_types::{NoteOffEvent, NoteOnEvent};
+use clack_host::events::event_types::{MidiEvent, NoteOffEvent, NoteOnEvent};
 use clack_host::prelude::*;
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use crossterm::event::{poll, read, Event, KeyCode, KeyModifiers};
@@ -79,7 +79,6 @@ impl AudioEngine {
         let sample_rate = output_stream_config.sample_rate.0;
 
         // --- MIDI SETUP ---
-        // Increase capacity to handle dense generative MIDI bursts from Strudel
         let midi_rb = HeapRb::<MidiMsg>::new(8192);
         let (mut midi_tx, mut midi_rx) = midi_rb.split();
 
@@ -193,7 +192,6 @@ impl AudioEngine {
         for (idx, track_cfg) in self.config.track.iter().enumerate() {
             println!("👉 Track {}: '{}'\r", idx, track_cfg.name);
 
-            // Expose the track index to the plugins being loaded in this track via the environment
             std::env::set_var("CURRENT_TRACK_INDEX", idx.to_string());
 
             let mut processors = Vec::new();
@@ -258,17 +256,16 @@ impl AudioEngine {
                     in_ev.clear();
                 }
 
-                // Pull all MIDI messages for this block
                 let mut msgs = Vec::new();
                 while let Some(msg) = midi_rx.pop() {
                     msgs.push(msg);
                 }
 
-                // Map absolute midir timestamps to relative frame offsets
                 if !msgs.is_empty() {
                     let first_stamp = msgs.first().map(|m| match m {
                         MidiMsg::NoteOn(_, _, _, s) => *s,
                         MidiMsg::NoteOff(_, _, s) => *s,
+                        MidiMsg::Cc(_, _, _, s) => *s,
                     }).unwrap_or(0);
 
                     for msg in msgs {
@@ -304,6 +301,24 @@ impl AudioEngine {
                                             time,
                                             Pckn::new(0u16, ch as u16, note, 0u32),
                                             0.0,
+                                        );
+                                        tracks_events[track_idx].0.push(&event);
+                                    }
+                                }
+                            }
+                            MidiMsg::Cc(ch, controller, value, s) => {
+                                let offset_us = s.saturating_sub(first_stamp);
+                                let mut time = ((offset_us as f64 / 1_000_000.0) * sample_rate as f64) as u32;
+                                time = time.min((frames as u32).saturating_sub(1));
+
+                                for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
+                                    if track_cfg.midi_channel.is_none()
+                                        || track_cfg.midi_channel == Some(ch)
+                                    {
+                                        let event = MidiEvent::new(
+                                            time,
+                                            0,
+                                            [0xB0 | ch, controller, value],
                                         );
                                         tracks_events[track_idx].0.push(&event);
                                     }

@@ -1,3 +1,4 @@
+use clack_plugin::events::event_types::MidiEvent;
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
@@ -34,48 +35,40 @@ struct ModulatedDelay {
 
 impl ModulatedDelay {
     fn new(sample_rate: f64) -> Self {
-        // 20ms buffer is plenty for vibrato/chorus
         let buffer_samples = ((20.0 / 1000.0) * sample_rate) as usize;
         Self {
             buffer: vec![0.0; buffer_samples.max(1)],
             write_index: 0,
             lfo_phase: 0.0,
-            base_delay_ms: 5.0, // Base offset so we don't collide with the write head
+            base_delay_ms: 5.0,
         }
     }
 
     fn process(&mut self, input: f32, sample_rate: f32, rate: f32, depth: f32, mix: f32) -> f32 {
-        // 1. Write the current input sample to the delay buffer
         self.buffer[self.write_index] = input;
 
-        // 2. Advance the LFO phase
         self.lfo_phase += (rate * 2.0 * PI) / sample_rate;
         if self.lfo_phase > 2.0 * PI {
             self.lfo_phase -= 2.0 * PI;
         }
 
-        // 3. Calculate current delay time (Sine wave modulation)
         let lfo_val = self.lfo_phase.sin();
         let current_delay_ms = self.base_delay_ms + (lfo_val * depth);
         let delay_samples = (current_delay_ms / 1000.0) * sample_rate;
 
-        // 4. Determine the exact read position (which will be fractional)
         let mut read_index_f = self.write_index as f32 - delay_samples;
         if read_index_f < 0.0 {
             read_index_f += self.buffer.len() as f32;
         }
 
-        // 5. Linear Interpolation for smooth pitch shifting
         let idx1 = read_index_f.trunc() as usize % self.buffer.len();
         let idx2 = (idx1 + 1) % self.buffer.len();
         let frac = read_index_f.fract();
 
         let delayed_sample = (self.buffer[idx1] * (1.0 - frac)) + (self.buffer[idx2] * frac);
 
-        // 6. Advance write index
         self.write_index = (self.write_index + 1) % self.buffer.len();
 
-        // 7. Output mix
         (input * (1.0 - mix)) + (delayed_sample * mix)
     }
 }
@@ -109,8 +102,24 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyVibratoPluginAudioProcessor {
         &mut self,
         _process: Process,
         mut audio: Audio,
-        _events: Events,
+        events: Events,
     ) -> Result<ProcessStatus, PluginError> {
+        for event in events.input {
+            if let Some(midi) = event.as_event::<MidiEvent>() {
+                let data = midi.data();
+                if data.len() == 3 && (data[0] & 0xF0) == 0xB0 {
+                    let cc = data[1];
+                    let val = data[2] as f32 / 127.0;
+                    match cc {
+                        90 => self.config.rate_hz = val * 10.0,
+                        91 => self.config.depth_ms = val * 10.0,
+                        92 => self.config.mix = val,
+                        _ => {}
+                    }
+                }
+            }
+        }
+
         let config = &self.config;
 
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {

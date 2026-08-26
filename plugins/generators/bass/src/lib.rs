@@ -1,4 +1,4 @@
-use clack_plugin::events::event_types::{NoteOffEvent, NoteOnEvent};
+use clack_plugin::events::event_types::{MidiEvent, NoteOffEvent, NoteOnEvent};
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
@@ -10,8 +10,8 @@ use std::f32::consts::PI;
 #[serde(default)]
 struct BassConfig {
     volume: f32,
-    waveform: u32, // 0 = Sawtooth, 1 = Square
-    sub_mix: f32,  // 0.0 to 1.0 (Mix of 1-octave down Sine)
+    waveform: u32,
+    sub_mix: f32,
 
     amp_attack_ms: f32,
     amp_decay_ms: f32,
@@ -51,7 +51,7 @@ impl Default for BassConfig {
 // --- 2. ADSR Envelope ---
 
 struct Adsr {
-    state: u8, // 0: Idle, 1: Attack, 2: Decay, 3: Sustain, 4: Release
+    state: u8,
     level: f32,
     sustain: f32,
     atk_inc: f32,
@@ -106,7 +106,7 @@ impl Adsr {
                     self.state = 3;
                 }
             }
-            3 => {} // Sustain holds steady
+            3 => {}
             4 => {
                 self.level -= self.rel_inc;
                 if self.level <= 0.0 {
@@ -179,7 +179,6 @@ impl Voice {
             return 0.0;
         }
 
-        // Advance phases (Sub phase goes half as fast to be one octave down)
         let inc = self.freq / sample_rate;
         self.phase += inc;
         if self.phase >= 1.0 {
@@ -191,27 +190,20 @@ impl Voice {
             self.sub_phase -= 1.0;
         }
 
-        // 1. Oscillators
         let main_osc = if config.waveform == 0 {
-            self.phase * 2.0 - 1.0 // Sawtooth
+            self.phase * 2.0 - 1.0
         } else {
-            if self.phase < 0.5 {
-                1.0
-            } else {
-                -1.0
-            } // Square
+            if self.phase < 0.5 { 1.0 } else { -1.0 }
         };
 
-        let sub_osc = (self.sub_phase * 2.0 * PI).sin(); // Sine
+        let sub_osc = (self.sub_phase * 2.0 * PI).sin();
         let mix = (main_osc * (1.0 - config.sub_mix)) + (sub_osc * config.sub_mix);
 
-        // 2. Envelopes
         let amp_val = self.amp_env.process();
         let env_val = self.filter_env.process();
 
-        // 3. Dynamic 1-Pole Low-Pass Filter
         let cutoff = config.filter_cutoff_hz + (config.filter_env_mod_hz * env_val);
-        let cutoff = cutoff.min(sample_rate / 2.0); // Prevent Nyquist clipping
+        let cutoff = cutoff.min(sample_rate / 2.0);
 
         let wc = 2.0 * PI * cutoff / sample_rate;
         let alpha = wc / (wc + 1.0);
@@ -223,7 +215,7 @@ impl Voice {
 
 // --- 4. CLAP Plugin Implementation ---
 
-const MAX_VOICES: usize = 8; // Increased slightly for overlapping releases
+const MAX_VOICES: usize = 8;
 
 pub struct MyBassProcessor {
     voices: Vec<Voice>,
@@ -272,13 +264,11 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyBassProcessor {
 
         for i in 0..frames {
             while let Some(event) = next_event.peek() {
-                // Access time through the event header
                 if event.header().time() as usize <= i {
                     if let Some(note_on) = event.as_event::<NoteOnEvent>() {
                         if let clack_plugin::events::Match::Specific(k) = note_on.key() {
                             let key = k as i16;
                             let vel = note_on.velocity() as f32;
-                            // Steal quietest voice
                             let voice_idx = self.voices.iter().enumerate()
                                 .min_by(|a, b| a.1.amp_env.level.partial_cmp(&b.1.amp_env.level).unwrap())
                                 .map(|(idx, _)| idx).unwrap_or(0);
@@ -295,6 +285,19 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyBassProcessor {
                         } else {
                             for voice in self.voices.iter_mut() {
                                 voice.release();
+                            }
+                        }
+                    } else if let Some(midi) = event.as_event::<MidiEvent>() {
+                        let data = midi.data();
+                        if data.len() == 3 && (data[0] & 0xF0) == 0xB0 {
+                            let cc = data[1];
+                            let val = data[2] as f32 / 127.0;
+                            match cc {
+                                14 => self.config.sub_mix = val,
+                                15 => self.config.amp_decay_ms = 10.0 + val * 990.0,
+                                74 => self.config.filter_cutoff_hz = 20.0 + val * 4980.0,
+                                71 => self.config.filter_env_mod_hz = val * 5000.0,
+                                _ => {}
                             }
                         }
                     }

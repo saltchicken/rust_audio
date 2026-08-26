@@ -1,0 +1,27 @@
+stack(
+  // 1. DRUMS: Step-Sequenced CC 
+  // We change the Hi-Hat decay (CC 18) per step to make it "breathe"
+  // 1.0 = long open hat, 0.1 = tight closed hat
+  stack(
+    note("36*4"), // 4-on-the-floor kick
+    note("[42*4]*4")
+      .ccn(18)
+      .ccv("<[0.1 0.1 1.0 0.1] [0.1 0.4 0.1 0.1]>")
+  ).midichan(10).midi(),
+
+  // 2. BASS: Continuous LFO Filter Sweep + Sub Mix
+  // sine.range(0.1, 0.9) sweeps between 10% and 90%
+  stack(
+    note("a1*8"), // The actual bass notes
+    ccv(sine.range(0.1, 0.9).slow(4)).ccn(74), // CC 74: Filter Cutoff
+    ccv(saw.range(0.0, 1.0).slow(2)).ccn(14)   // CC 14: Sub Mix
+  ).midichan(2).midi(),
+
+  // 3. SYNTH LEAD: Driving Amp and Delay Modulation
+  stack(
+    note("<[a4 c5 e5 g5] [f4 a4 c5 e5]>").fast(2), // The melody
+    ccv(saw.range(0.0, 1).fast(4)).ccn(70),      // CC 70: Amp Drive sweep
+    ccv("<0.2 0.8>").ccn(86)                       // CC 86: Delay Mix jumping
+  ).midichan(1).midi()
+
+).cpm(120/4)

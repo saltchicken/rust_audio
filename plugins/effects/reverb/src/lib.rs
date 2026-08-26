@@ -1,3 +1,4 @@
+use clack_plugin::events::event_types::MidiEvent;
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
@@ -112,8 +113,6 @@ impl AllPassFilter {
 struct ReverbChannel {
     combs: [CombFilter; 4],
     allpasses: [AllPassFilter; 2],
-    mix: f32,
-    wet_scale: f32,
 }
 
 impl ReverbChannel {
@@ -139,12 +138,10 @@ impl ReverbChannel {
                 AllPassFilter::new(a1, config.allpass_feedback),
                 AllPassFilter::new(a2, config.allpass_feedback),
             ],
-            mix: config.mix,
-            wet_scale: config.wet_scale,
         }
     }
 
-    fn process(&mut self, input: f32) -> f32 {
+    fn process(&mut self, input: f32, mix: f32, wet_scale: f32) -> f32 {
         let mut out = 0.0;
 
         for comb in &mut self.combs {
@@ -155,7 +152,7 @@ impl ReverbChannel {
             out = allpass.process(out);
         }
 
-        (input * (1.0 - self.mix)) + (out * self.mix * self.wet_scale)
+        (input * (1.0 - mix)) + (out * mix * wet_scale)
     }
 }
 
@@ -163,6 +160,7 @@ impl ReverbChannel {
 
 pub struct MyReverbPluginAudioProcessor {
     channels: Vec<ReverbChannel>,
+    config: ReverbConfig,
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
@@ -180,15 +178,32 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
             ReverbChannel::new(sr, config.right_spread, &config),
         ];
 
-        Ok(Self { channels })
+        Ok(Self { channels, config })
     }
 
     fn process(
         &mut self,
         _process: Process,
         mut audio: Audio,
-        _events: Events,
+        events: Events,
     ) -> Result<ProcessStatus, PluginError> {
+        for event in events.input {
+            if let Some(midi) = event.as_event::<MidiEvent>() {
+                let data = midi.data();
+                if data.len() == 3 && (data[0] & 0xF0) == 0xB0 {
+                    let cc = data[1];
+                    let val = data[2] as f32 / 127.0;
+                    match cc {
+                        88 => self.config.mix = val,
+                        89 => self.config.wet_scale = val * 0.5,
+                        _ => {}
+                    }
+                }
+            }
+        }
+
+        let config = &self.config;
+
         plugin_core::process_f32_channels(&mut audio, |ch_idx, input, output| {
             let reverb = if ch_idx < self.channels.len() {
                 &mut self.channels[ch_idx]
@@ -197,7 +212,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
             };
 
             for (i, o) in input.iter().zip(output.iter_mut()) {
-                *o = reverb.process(*i);
+                *o = reverb.process(*i, config.mix, config.wet_scale);
             }
         });
 
