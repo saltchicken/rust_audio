@@ -1,43 +1,27 @@
-stack(
-  // ==========================================
-  // TRACK 1: DRUM MACHINE (Rust Ch 9 = Strudel Ch 10)
-  // ==========================================
-  stack(
-    note("36")
-  ).midichan(10).midi(),
+const kick = note("<[36 36*2 36 36] [36 36 36*2 36]>").midichan(10).midi()
 
-  // ==========================================
-  // TRACK 2: SYNTH LEAD (Rust Ch 0 = Strudel Ch 1)
-  // ==========================================
-  note("<[c4,eb4,g4,bb4,d5] [f4,ab4,c5,eb5] [d4,f4,ab4,c5] [g4,b4,d5,f5]>")
-    .slow(2) 
-    .arp("<up down updown pinkybo>") 
-    .fast(4) 
-    .sustain(0.2) 
-    .off(1/16, n => n.add(12).velocity(0.6)) 
-    .midichan(1).midi(),
-
-  // ==========================================
-  // TRACK 3: BASS LINE (Rust Ch 1 = Strudel Ch 2)
-  // ==========================================
-  note("<c2 ~ eb2 ~> <f2 d2 c2 ~>")
-    .struct("x ~ x x ~ x x ~") 
-    .off(1/8, n => n.add(12).velocity(0.5)) 
-    .velocity(0.85)
-    .midichan(2).midi(),
-
-  // ==========================================
-  // TRACK 4: ACID PLUCK (Rust Ch 2 = Strudel Ch 3)
-  // ==========================================
-  note("c3 eb3 g3 f3")
+const lead = note("< <[a4 ~ c5 d5] [e5 ~ g5 ~] [a5 g5 e5 d5] [c5 d5 e5 ~]>!8 <[c5 ~ e5 f5] [g5 ~ a5 ~] [c6 b5 g5 f5] [e5 f5 g5 ~]>!8 >")
     .fast(2)
-    .ply("<1 2 3>") 
-    .jux(n => n.add(7).rev()) 
-    .velocity(saw.range(0.4, 0.9).fast(4)) 
-    .mask("<1 1 1 0>")
+    .midichan(1).midi()
+
+const base = note("a2")
+    .struct("<[x [~ x] x]*4>")
+    // Section A (8 bars): Drops down (A -> G -> F -> E) repeating 4 times
+    // Section B (8 bars): Climbs up (F -> G -> A -> C) repeating 4 times
+    .add(note("< <0 -2 -4 -5>!8 <-4 -2 0 3>!8 >"))
+    .midichan(2).midi()
+
+const acid = note("< <[a3 c4 e4 a4] [g3 b3 d4 g4] [f3 a3 c4 f4] [e3 gs3 b3 e4]>!8 <[f3 a3 c4 f4] [e3 gs3 b3 e4] [d3 f3 a3 d4] [c3 e3 g3 c4]>!8 >")
+    .fast(4)
     .midichan(3).midi()
 
-// ==========================================
-// TEMPO
-// ==========================================
-).cpm(300/4)
+
+stack(kick, lead, base, acid.slow(4)).cpm(155/4)
+
+
+// const drumsB = stack(
+//   note("<[36 36*2 36 36] [36 36 36*2 36]>"),
+//   note("<~ 38 ~ 38> <~ 38 ~ [38*3]>"),
+//   note("[[~ 46]*4]"), 
+//   note("<~!3 [50*2 47*2 43*2 43*2]>")
+// )
