@@ -2,8 +2,8 @@ use midir::{Ignore, MidiInput, MidiInputConnection};
 
 #[derive(Debug, Clone, Copy)]
 pub enum MidiMsg {
-    NoteOn(u8, u8, f32), // channel, note, velocity
-    NoteOff(u8, u8),     // channel, note
+    NoteOn(u8, u8, f32, u64), // channel, note, velocity, timestamp_us
+    NoteOff(u8, u8, u64),     // channel, note, timestamp_us
 }
 
 pub fn connect_midi<F>(mut on_message: F) -> Option<MidiInputConnection<()>>
@@ -28,7 +28,7 @@ where
             .connect(
                 port,
                 "midir-read-input",
-                move |_, message, _| {
+                move |stamp_us, message, _| {
                     if message.len() >= 3 {
                         let status_nibble = message[0] & 0xF0;
                         let channel = message[0] & 0x0F;
@@ -37,10 +37,10 @@ where
                         let normalized_vel = velocity as f32 / 127.0;
 
                         if status_nibble == 0x90 && velocity > 0 {
-                            on_message(MidiMsg::NoteOn(channel, note, normalized_vel));
+                            on_message(MidiMsg::NoteOn(channel, note, normalized_vel, stamp_us));
                         } else if status_nibble == 0x80 || (status_nibble == 0x90 && velocity == 0)
                         {
-                            on_message(MidiMsg::NoteOff(channel, note));
+                            on_message(MidiMsg::NoteOff(channel, note, stamp_us));
                         }
                     }
                 },

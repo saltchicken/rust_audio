@@ -128,7 +128,7 @@ impl Voice {
 
 // --- 4. CLAP Plugin Implementation ---
 
-const MAX_VOICES: usize = 16;
+const MAX_VOICES: usize = 32;
 
 pub struct MySynthProcessor {
     voices: Vec<Voice>,
@@ -173,44 +173,46 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             self.block_buffer.resize(frames, 0.0);
         }
 
-        for event in events.input {
-            if let Some(note_on) = event.as_event::<NoteOnEvent>() {
-                if let clack_plugin::events::Match::Specific(k) = note_on.key() {
-                    let key = k as i16;
-                    let vel = note_on.velocity() as f32;
-                    let voice_idx = self
-                        .voices
-                        .iter()
-                        .position(|v| v.active_note.is_none())
-                        .unwrap_or(0);
-                    self.voices[voice_idx].trigger(key, vel, &self.config, self.sample_rate);
-                }
-            } else if let Some(note_off) = event.as_event::<NoteOffEvent>() {
-                match note_off.key() {
-                    clack_plugin::events::Match::Specific(k) => {
-                        let key = k as i16;
-                        for voice in self.voices.iter_mut() {
-                            if voice.active_note == Some(key) {
+        // Process events and audio sample-accurately
+        let mut next_event = events.input.into_iter().peekable();
+
+        for i in 0..frames {
+            while let Some(event) = next_event.peek() {
+                // Access time through the event header
+                if event.header().time() as usize <= i {
+                    if let Some(note_on) = event.as_event::<NoteOnEvent>() {
+                        if let clack_plugin::events::Match::Specific(k) = note_on.key() {
+                            let key = k as i16;
+                            let vel = note_on.velocity() as f32;
+                            // Steal the quietest voice instead of always voice 0
+                            let voice_idx = self.voices.iter().enumerate()
+                                .min_by(|a, b| a.1.env.level.partial_cmp(&b.1.env.level).unwrap())
+                                .map(|(idx, _)| idx).unwrap_or(0);
+                            self.voices[voice_idx].trigger(key, vel, &self.config, self.sample_rate);
+                        }
+                    } else if let Some(note_off) = event.as_event::<NoteOffEvent>() {
+                        if let clack_plugin::events::Match::Specific(k) = note_off.key() {
+                            let key = k as i16;
+                            for voice in self.voices.iter_mut() {
+                                if voice.active_note == Some(key) {
+                                    voice.release();
+                                }
+                            }
+                        } else {
+                            for voice in self.voices.iter_mut() {
                                 voice.release();
                             }
                         }
                     }
-                    _ => {
-                        for voice in self.voices.iter_mut() {
-                            voice.release();
-                        }
-                    }
+                    next_event.next();
+                } else {
+                    break;
                 }
             }
-        }
 
-        for i in 0..frames {
             self.block_buffer[i] = 0.0;
-        }
-
-        for voice in &mut self.voices {
-            if voice.active_note.is_some() {
-                for i in 0..frames {
+            for voice in &mut self.voices {
+                if voice.active_note.is_some() || voice.env.state != 0 {
                     self.block_buffer[i] += voice.process(self.sample_rate);
                 }
             }
@@ -221,7 +223,6 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             self.block_buffer[i] = out.tanh();
         }
 
-        // Apply generated block buffer directly to the active channels
         plugin_core::process_f32_channels(&mut audio, |_ch_idx, _input, output| {
             for (i, sample) in output.iter_mut().enumerate().take(frames) {
                 *sample = self.block_buffer[i];

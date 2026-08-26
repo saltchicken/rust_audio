@@ -138,7 +138,7 @@ impl DrumVoice {
 
 // --- 3. CLAP Plugin Processor ---
 
-const MAX_VOICES: usize = 12;
+const MAX_VOICES: usize = 32;
 
 pub struct MyDrumProcessor {
     voices: Vec<DrumVoice>,
@@ -177,40 +177,53 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
         events: Events,
     ) -> Result<ProcessStatus, PluginError> {
         let frames = audio.frames_count() as usize;
+        
         if self.block_buffer.len() < frames {
             self.block_buffer.resize(frames, 0.0);
         }
+
+        let mut next_event = events.input.into_iter().peekable();
+
         for i in 0..frames {
-            self.block_buffer[i] = 0.0;
-        }
+            while let Some(event) = next_event.peek() {
+                // Access time through the event header
+                if event.header().time() as usize <= i {
+                    if let Some(note_on) = event.as_event::<NoteOnEvent>() {
+                        if let clack_plugin::events::Match::Specific(k) = note_on.key() {
+                            let key = k as i16;
+                            let vel = note_on.velocity() as f32;
 
-        for event in events.input {
-            if let Some(note_on) = event.as_event::<NoteOnEvent>() {
-                if let clack_plugin::events::Match::Specific(k) = note_on.key() {
-                    let key = k as i16;
-                    let vel = note_on.velocity() as f32;
+                            let drum_info = match key {
+                                36 => Some((0, self.config.kick_decay_ms)),  // C1
+                                38 => Some((1, self.config.snare_decay_ms)), // D1
+                                42 => Some((2, self.config.hihat_decay_ms)), // F#1
+                                43 => Some((3, self.config.tom_decay_ms)),   // G1
+                                47 => Some((4, self.config.tom_decay_ms)),   // B1
+                                50 => Some((5, self.config.tom_decay_ms)),   // D2
+                                _ => None,
+                            };
 
-                    // Map standard MIDI notes to our drums
-                    let (inst, decay) = match key {
-                        36 => (0, self.config.kick_decay_ms),  // C1  - Kick
-                        38 => (1, self.config.snare_decay_ms), // D1  - Snare
-                        42 => (2, self.config.hihat_decay_ms), // F#1 - Hi-hat
-                        43 => (3, self.config.tom_decay_ms),   // G1  - Low Tom
-                        47 => (4, self.config.tom_decay_ms),   // B1  - Mid Tom
-                        50 => (5, self.config.tom_decay_ms),   // D2  - High Tom
-                        _ => continue,
-                    };
-
-                    if let Some(voice) = self.voices.iter_mut().find(|v| !v.active) {
-                        voice.trigger(inst, vel, decay, self.sample_rate);
+                            if let Some((inst, decay)) = drum_info {
+                                // Find inactive voice or steal the quietest one
+                                let voice_idx = self.voices.iter().position(|v| !v.active)
+                                    .unwrap_or_else(|| {
+                                        self.voices.iter().enumerate()
+                                            .min_by(|a, b| a.1.env.partial_cmp(&b.1.env).unwrap())
+                                            .map(|(idx, _)| idx).unwrap_or(0)
+                                    });
+                                self.voices[voice_idx].trigger(inst, vel, decay, self.sample_rate);
+                            }
+                        }
                     }
+                    next_event.next();
+                } else {
+                    break;
                 }
             }
-        }
 
-        for voice in &mut self.voices {
-            if voice.active {
-                for i in 0..frames {
+            self.block_buffer[i] = 0.0;
+            for voice in &mut self.voices {
+                if voice.active {
                     self.block_buffer[i] += voice.process(self.sample_rate);
                 }
             }

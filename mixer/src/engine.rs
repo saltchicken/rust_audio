@@ -79,7 +79,8 @@ impl AudioEngine {
         let sample_rate = output_stream_config.sample_rate.0;
 
         // --- MIDI SETUP ---
-        let midi_rb = HeapRb::<MidiMsg>::new(256);
+        // Increase capacity to handle dense generative MIDI bursts from Strudel
+        let midi_rb = HeapRb::<MidiMsg>::new(8192);
         let (mut midi_tx, mut midi_rx) = midi_rb.split();
 
         let _midi_connection = connect_midi(move |msg| {
@@ -257,33 +258,55 @@ impl AudioEngine {
                     in_ev.clear();
                 }
 
+                // Pull all MIDI messages for this block
+                let mut msgs = Vec::new();
                 while let Some(msg) = midi_rx.pop() {
-                    match msg {
-                        MidiMsg::NoteOn(ch, note, velocity) => {
-                            for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
-                                if track_cfg.midi_channel.is_none()
-                                    || track_cfg.midi_channel == Some(ch)
-                                {
-                                    let event = NoteOnEvent::new(
-                                        0,
-                                        Pckn::new(0u16, ch as u16, note, 0u32),
-                                        velocity as f64,
-                                    );
-                                    tracks_events[track_idx].0.push(&event);
+                    msgs.push(msg);
+                }
+
+                // Map absolute midir timestamps to relative frame offsets
+                if !msgs.is_empty() {
+                    let first_stamp = msgs.first().map(|m| match m {
+                        MidiMsg::NoteOn(_, _, _, s) => *s,
+                        MidiMsg::NoteOff(_, _, s) => *s,
+                    }).unwrap_or(0);
+
+                    for msg in msgs {
+                        match msg {
+                            MidiMsg::NoteOn(ch, note, velocity, s) => {
+                                let offset_us = s.saturating_sub(first_stamp);
+                                let mut time = ((offset_us as f64 / 1_000_000.0) * sample_rate as f64) as u32;
+                                time = time.min((frames as u32).saturating_sub(1));
+
+                                for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
+                                    if track_cfg.midi_channel.is_none()
+                                        || track_cfg.midi_channel == Some(ch)
+                                    {
+                                        let event = NoteOnEvent::new(
+                                            time,
+                                            Pckn::new(0u16, ch as u16, note, 0u32),
+                                            velocity as f64,
+                                        );
+                                        tracks_events[track_idx].0.push(&event);
+                                    }
                                 }
                             }
-                        }
-                        MidiMsg::NoteOff(ch, note) => {
-                            for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
-                                if track_cfg.midi_channel.is_none()
-                                    || track_cfg.midi_channel == Some(ch)
-                                {
-                                    let event = NoteOffEvent::new(
-                                        0,
-                                        Pckn::new(0u16, ch as u16, note, 0u32),
-                                        0.0,
-                                    );
-                                    tracks_events[track_idx].0.push(&event);
+                            MidiMsg::NoteOff(ch, note, s) => {
+                                let offset_us = s.saturating_sub(first_stamp);
+                                let mut time = ((offset_us as f64 / 1_000_000.0) * sample_rate as f64) as u32;
+                                time = time.min((frames as u32).saturating_sub(1));
+
+                                for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
+                                    if track_cfg.midi_channel.is_none()
+                                        || track_cfg.midi_channel == Some(ch)
+                                    {
+                                        let event = NoteOffEvent::new(
+                                            time,
+                                            Pckn::new(0u16, ch as u16, note, 0u32),
+                                            0.0,
+                                        );
+                                        tracks_events[track_idx].0.push(&event);
+                                    }
                                 }
                             }
                         }
