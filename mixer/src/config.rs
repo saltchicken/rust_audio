@@ -20,6 +20,7 @@ pub struct EngineConfig {
     pub capacity_seconds: f32,
     pub input_device: String,
     pub output_device: String,
+    pub default_preset: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -47,11 +48,12 @@ impl Default for EngineConfig {
             capacity_seconds: 0.5,
             input_device: "default".to_string(),
             output_device: "default".to_string(),
+            default_preset: Some("presets/default.toml".to_string()),
         }
     }
 }
 
-pub fn load_config_and_preset(config_path: &str, preset_path: &str) -> anyhow::Result<MixerConfig> {
+pub fn load_config_and_preset(config_path: &str, preset_path: Option<&str>) -> anyhow::Result<(MixerConfig, String)> {
     let engine_config: EngineConfig = if let Ok(config_str) = fs::read_to_string(config_path) {
         toml::from_str(&config_str).context("Failed to parse engine config.toml")?
     } else {
@@ -61,18 +63,26 @@ pub fn load_config_and_preset(config_path: &str, preset_path: &str) -> anyhow::R
         default_config
     };
 
-    let preset_str = fs::read_to_string(preset_path)
-        .with_context(|| format!("Failed to find preset file: {}", preset_path))?;
-    let preset: Preset = toml::from_str(&preset_str)
-        .with_context(|| format!("Failed to parse preset file: {}", preset_path))?;
+    let resolved_preset_path = preset_path
+        .map(|s| s.to_string())
+        .or_else(|| engine_config.default_preset.clone())
+        .unwrap_or_else(|| "presets/default.toml".to_string());
 
-    Ok(MixerConfig {
-        master_volume: engine_config.master_volume,
-        sample_rate: engine_config.sample_rate,
-        latency_ms: engine_config.latency_ms,
-        capacity_seconds: engine_config.capacity_seconds,
-        input_device: engine_config.input_device,
-        output_device: engine_config.output_device,
-        track: preset.track,
-    })
+    let preset_str = fs::read_to_string(&resolved_preset_path)
+        .with_context(|| format!("Failed to find preset file: {}", resolved_preset_path))?;
+    let preset: Preset = toml::from_str(&preset_str)
+        .with_context(|| format!("Failed to parse preset file: {}", resolved_preset_path))?;
+
+    Ok((
+        MixerConfig {
+            master_volume: engine_config.master_volume,
+            sample_rate: engine_config.sample_rate,
+            latency_ms: engine_config.latency_ms,
+            capacity_seconds: engine_config.capacity_seconds,
+            input_device: engine_config.input_device,
+            output_device: engine_config.output_device,
+            track: preset.track,
+        },
+        resolved_preset_path,
+    ))
 }

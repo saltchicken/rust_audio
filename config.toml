@@ -4,3 +4,4 @@ latency_ms = 2.0
 capacity_seconds = 1.0
 input_device = "default"
 output_device = "default"
+default_preset = "presets/dubTechno.toml"
