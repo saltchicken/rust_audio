@@ -1,0 +1,40 @@
+// Set the global tempo to match the delays in your config
+
+stack(
+  // TRACK 1: Drum Machine (MIDI Channel 9)
+  // Trick: `(3,8)` is a Euclidean rhythm (3 kicks spaced over 8 steps)
+  // Trick: `<>` alternates the pattern on every cycle.
+    stack(
+      note("c2(3,8) <~ c2*2>").midi(9),
+      
+      // Snare on the off-beat, with occasional rapid fills
+      note("~ <d2 d2(3,4)>").midi(9),
+      
+      // Trick: Generative velocity. The hi-hat velocity follows a sine wave to create a "breathing" groove.
+      note("f#2*8").velocity(sine.range(0.3, 0.8)).midi(9),
+  ).midichan(10).midi(),
+
+  // TRACK 2: Ethereal Pad (MIDI Channel 0)
+  // Trick: `jux(rev)` plays the melody normally in the left ear, and reversed in the right ear. 
+  // It triggers the huge reverbs beautifully.
+  note("c5 <d5 e5> f5 <g5 b4>")
+    .slow(2)
+    .jux(rev)
+    .velocity(0.6)
+    .midi(0),
+
+  // TRACK 3: Sub Drone (MIDI Channel 1)
+  // Trick: Super slow changing roots to allow the filter sweep in the Rust config to fully open.
+  note("<c4 a1 f1 g1>")
+    .midi(1),
+
+  // TRACK 4: Polyrhythm Pluck (MIDI Channel 2)
+  // Trick: `scale` maps numbers to actual musical intervals (minor pentatonic here).
+  // Trick: `off(1/8, add(12))` takes the pattern, delays a copy of it by 1/8th of a cycle, and pitches it up an octave.
+  // This pairs with the triplet delay in your config to create a massive cascading arpeggio.
+  note(scale("minorpentatonic", "[0 2 4 7 9]*2"))
+    .off(1/8, add(12))
+    .slow(1.5)
+    .velocity(0.7)
+    .midi(2)
+).cpm(160 / 4)

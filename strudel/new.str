@@ -1,0 +1,35 @@
+stack(
+  // DRUMS: Grows from sparse kick to full groove with a riser fill
+  stack(
+    // Kick: Out during breakdown (bars 17-24)
+    note("< [36 36*2 36 36]!16 ~!8 [36 36*2 36 36]!8 >"),
+    
+    // Snare: Enters at bar 9, rolls on bar 16 & 32
+    note("< ~!8 [<~ 38 ~ 38>!7 [38*2]]!1 <~ 38 ~ 38>!7 [38*2] >"),
+    
+    // Hats: Tight -> Splashing -> Drop -> Final Climax
+    note("< [[42*4]*4]!8 [[~ 46]*4]!8 ~!4 [[42*2]*4]!4 [[~ 46*2]*4]!8 >"),
+    
+    // Toms: Descent fill every 4th bar
+    note("<~!3 [50*2 47*2 43*2 43*2]>")
+  ).midichan(10).midi(),
+
+  // LEAD: Brooding -> Uplifting -> Solo Peak
+  note("< <[a4 ~ c5 d5] [e5 ~ g5 ~] [a5 g5 e5 d5] [c5 d5 e5 ~]>!8 <[c5 ~ e5 f5] [g5 ~ a5 ~] [c6 b5 g5 f5] [e5 f5 g5 ~]>!8 >")
+    .fast(2)
+    .every(8, x => x.fast(2)) // 8th-bar flourish
+    .midichan(1).midi(),
+
+  // BASS: Drops out in the breakdown, returns with octave boost
+  note("a2")
+    .struct("<[x [~ x] x]*4>")
+    .add(note("< <0 -2 -4 -5>!7 ~ <-4 -2 0 3>!7 ~ ~!8 <0 -2 -4 -5>!8 >"))
+    .every(16, x => x.add(note("12")))
+    .midichan(2).midi(),
+
+  // ACID ARP: Sweeps cutoff continuously over 32 cycles
+  note("< <[a3 c4 e4 a4] [g3 b3 d4 g4] [f3 a3 c4 f4] [e3 gs3 b3 e4]>!8 <[f3 a3 c4 f4] [e3 gs3 b3 e4] [d3 f3 a3 d4] [c3 e3 g3 c4]>!8 >")
+    .fast(4)
+    .ccn(74).ccv(saw.range(20, 115).slow(32)) // Continuous 32-bar filter climb
+    .midichan(3).midi()
+).cpm(155/4)
