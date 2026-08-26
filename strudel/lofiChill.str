@@ -1,0 +1,42 @@
+stack(
+  // ---------------------------------------------------------
+  // DRUMS: Lazy & Swung
+  // ---------------------------------------------------------
+  stack(
+    // Kick: Sparse, slight syncopation
+    note("<36 [~ 36]>").delay("[0 0.05]*2"), // Nudged slightly off-grid
+    
+    // Snare: Relaxed backbeat
+    note("~ 38 ~ <38 [~ 38]>").delay(0.02),
+    
+    // Hats: Generative velocity makes them "breathe" 
+    note("42*8")
+      // .velocity(sine.range(0.3, 0.8).fast(2)) 
+  ).midichan(10).midi(),
+
+  // ---------------------------------------------------------
+  // SYNTH: Lush Jazz Chords
+  // ---------------------------------------------------------
+  // Minor 7th and Major 7th chords with lots of negative space
+  note("<[d4,f4,a4,c5] ~ ~ [c4,e4,g4,b4]>")
+    .struct("[x ~] ~ ~ x")
+    .midichan(1).midi(),
+
+  // ---------------------------------------------------------
+  // BASS: Deep Sub Foundation
+  // ---------------------------------------------------------
+  note("<d2 ~ f2 ~> <e2 ~ g2 ~>")
+    .midichan(2).midi(),
+
+  // ---------------------------------------------------------
+  // PLUCK: Gentle Melodic Sprinkles
+  // ---------------------------------------------------------
+  // Plays a Dorian scale run, but uses `mask` so it only triggers occasionally
+  note(scale("dorian", "[0 2 4 7 9]*2"))
+    .off(1/8, add(12)) // Echoes itself an octave higher
+    .mask("<1 0 0 1>") // Only plays on the 1st and 4th bars
+    .fast(2)
+    .velocity(0.5)
+    .midichan(3).midi()
+
+).cpm(82/4)

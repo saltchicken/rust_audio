@@ -1,0 +1,43 @@
+stack(
+  // ---------------------------------------------------------
+  // DRUMS: Classic House Four-on-the-Floor
+  // ---------------------------------------------------------
+  stack(
+    // Kick: Steady on every quarter note
+    note("36"),
+    
+    // Snare/Clap: On the 2 and 4
+    note("~ 38 ~ 38"),
+    
+    // Hats: Pumping off-beat 8th notes, with an open hat feel on the 4th bar
+    note("<[~ 42]*4 [~ 42 ~ [42 42]]>")
+  ).midichan(10).midi(),
+
+  // ---------------------------------------------------------
+  // SYNTH: Rave Chords
+  // ---------------------------------------------------------
+  // Stabs hitting on the off-beat, transposing down over 4 bars
+  note("[~ [c4,eb4,g4]]*2")
+    .add(note("<0 0 -2 -5>")) 
+    .midichan(1).midi(),
+
+  // ---------------------------------------------------------
+  // BASS: Rolling 16th Note Bounce
+  // ---------------------------------------------------------
+  // Uses rests to create a highly rhythmic, bouncing foundation
+  note("c2")
+    .struct("<[x ~ x x] [~ x x ~]*2>")
+    .add(note("<0 0 -2 -5>")) 
+    .midichan(2).midi(),
+
+  // ---------------------------------------------------------
+  // ACID PLUCK: 303-Style Sequence + Filter Mod
+  // ---------------------------------------------------------
+  // 16th note sequence jumping octaves
+  note("c3")
+    .struct("x x ~ x x ~ x x")
+    .add(note("<[0 12 0 3] [0 7 0 10]>"))
+    // CC 74 (Filter Cutoff): Sine wave LFO sweeping the filter slowly over 8 cycles
+    .midichan(3).midi()
+
+).cpm(125/4)

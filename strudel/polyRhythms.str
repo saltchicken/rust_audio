@@ -1,0 +1,49 @@
+stack(
+  // ---------------------------------------------------------
+  // DRUMS: Polyrhythmic Layering
+  // ---------------------------------------------------------
+  stack(
+    // Kick: Standard 4/4 grid to anchor the track
+    note("36*4"),
+    
+    // Snare: Cross-rhythm hitting every 3rd 8th-note
+    note("38(3,8)"),
+    
+    // Hats: Groupings of 5 against the 4/4 pulse
+    note("42*5")
+  ).midichan(10).midi(),
+
+  // ---------------------------------------------------------
+  // SYNTH: 7-Step Sequence
+  // ---------------------------------------------------------
+  // A 7-note melody forced into an 8-step timeline, creating endless shifting
+  note("c4 eb4 g4 bb4 c5 bb4 g4")
+  .pace(8)
+  .midichan(1).midi(),
+
+// polymeter(
+// "c4 eb4 g4 bb4 c5 bb4 g4",
+// "~ ~ ~ ~ ~ ~ ~ ~"
+//  ).note().slow(8)
+// .midichan(1).midi(),
+
+
+
+  // ---------------------------------------------------------
+  // BASS: Minimal Pulse
+  // ---------------------------------------------------------
+  note("c2*4")
+    // Creates a pumping dynamic without needing a sidechain compressor
+    .velocity("0.8 0.4 0.6 0.4") 
+    .midichan(2).midi(),
+
+  // ---------------------------------------------------------
+  // ACID PLUCK: Random Octave Arpeggiator
+  // ---------------------------------------------------------
+  note("c3*8")
+    // irand(3) generates a random number (0, 1, or 2) per note
+    // mul(12) turns it into octave jumps (+0, +12, or +24 semitones)
+    .add(note(irand(3).mul(12))) 
+    .midichan(3).midi()
+
+).cpm(110/4)
