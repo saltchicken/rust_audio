@@ -1,0 +1,61 @@
+stack(
+  
+  // ==========================================
+  // 1. DRUM MACHINE (Rust Ch 9 / MIDI Ch 10)
+  // ==========================================
+  stack(
+    note("<[36 ~ 36 ~] [36 ~ 36 36]>"),             // Evolving 808 Kick
+    note("[~ 38]*2"),                               // Steady Snare on the upbeats
+    note("[42*4] <42*8 42*6>"),                     // Shifting 16th/24th Hi-hats
+    note("<~ ~ [~ 47 ~ 43] [50 47 43 43]>")        // Algorithmic Tom fills every 3rd/4th cycle
+  )
+  .midichan(10).midi(),
+  
+  // Drum CC Modulations (Independent continuous streams)
+  ccv(saw.range(30, 90).slow(16).segment(32)).ccn(16).midichan(10).midi(),  // Kick Decay swell
+  ccv(sine.range(20, 110).slow(8).segment(32)).ccn(18).midichan(10).midi(), // Breathing Hi-hat Decay
+
+
+  // ==========================================
+  // 2. BASS LINE (Rust Ch 1 / MIDI Ch 2)
+  // ==========================================
+  note("<c2!4 a1!4 f1!4 g1!4>")                     // Slow chord root progression
+    .struct("<[x ~ x ~] [x ~ x*2 x]>")              // Extracted driving rhythm
+    .midichan(2).midi(),
+    
+  // Bass CC Modulations
+  ccv(saw.range(20, 115).slow(32).segment(32)).ccn(74).midichan(2).midi(),  // 32-bar Filter Cutoff sweep
+  ccv(90).ccn(14).midichan(2).midi(),                                       // Static Sub Mix push
+  ccv(50).ccn(15).midichan(2).midi(),                                       // Tight Amp Decay
+
+
+  // ==========================================
+  // 3. ACID PLUCK (Rust Ch 2 / MIDI Ch 3)
+  // ==========================================
+  note("<[c3 e3 g3 b3] [a2 c3 e3 g3]>")             // Base arpeggio pool
+    .struct("[x ~ x x] [~ x ~ x]")                  // Syncopated plucking rhythm
+    .midichan(3).midi(),
+    
+  // Acid CC Modulations
+  ccv(sine.range(10, 127).slow(4).segment(32)).ccn(74).midichan(3).midi(),  // Fast, wobbling filter cutoff
+  ccv(110).ccn(71).midichan(3).midi(),                                      // High Envelope Mod for "squelch"
+  ccv(saw.range(30, 90).slow(8).segment(32)).ccn(85).midichan(3).midi(),    // Evolving Delay Feedback
+  ccv(75).ccn(86).midichan(3).midi(),                                       // Delay Mix
+
+
+  // ==========================================
+  // 4. SYNTH LEAD (Rust Ch 0 / MIDI Ch 1)
+  // ==========================================
+  note("< <[c4,e4,g4,b4] [a3,c4,e4,g4]>!2 <[f3,a3,c4,e4] [g3,b3,d4,f4]>!2 >")
+    .struct("<[x ~ ~ x] [~ x x ~]>")                // Sparse rhythm extraction
+    .off(1/8, add(12))                              // Cascading polyphonic octave echoes
+    .off(1/4, add(7))                               // 5th harmony trails
+    .midichan(1).midi(),
+    
+  // Synth Lead CC Modulations
+  ccv(sine.range(10, 80).slow(16).segment(32)).ccn(20).midichan(1).midi(),  // Breathing Attack MS
+  ccv(sine.range(40, 110).slow(12).segment(32)).ccn(21).midichan(1).midi(), // Shifting Release MS
+  ccv(sine.range(60, 115).slow(8).segment(32)).ccn(7).midichan(1).midi(),   // Volume swells
+  ccv(saw.range(20, 100).slow(32).segment(32)).ccn(88).midichan(1).midi()   // Vast Reverb wash opening up over time
+
+).cpm(125/4) // Global Tempo: 125 BPM

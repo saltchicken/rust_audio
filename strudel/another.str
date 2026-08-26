@@ -1,0 +1,32 @@
+stack(
+  // 1. Drum Machine (Rust Ch 9)
+  note("<[36 42*2 36 42] [42 38 42 42]>")
+    .midichan(10).midi()
+    .ccn(18).ccv(sine.range(30, 90).slow(4)), // Evolving hi-hat decay
+    
+  // 2. Bass Line (Rust Ch 1)
+  note("<c2!3 eb2> <f2!3 eb2>")
+    .struct("x ~ x ~") // Rhythmic extraction applied to the sequence
+    .midichan(2).midi()
+    .ccn(74).ccv(saw.range(20, 115).slow(16)) // 16-bar slow filter sweep
+    .ccn(14).ccv(110)                         // Heavy Sub mix
+    .ccn(15).ccv(40),                         // Snappy amp decay
+    
+  // 3. Acid Pluck (Rust Ch 2)
+  note("<[c3,eb3,g3] [f3,a3,c4]>")
+    .fast(2)
+    .off(1/8, add(12)) // Cascading arpeggio effect via polyphony
+    .midichan(3).midi()
+    .ccn(74).ccv(sine.range(40, 127).fast(1/2)) // Bouncy filter modulation
+    .ccn(71).ccv(100)                           // High Filter Env Mod
+    .ccn(85).ccv(90)                            // Delay Feedback
+    .ccn(86).ccv(50),                           // Delay Mix
+    
+  // 4. Synth Lead (Rust Ch 0)
+  note("<c4 f4 g4 c5>")
+    .slow(2)
+    .midichan(1).midi()
+    .ccn(20).ccv(100) // Slow Attack
+    .ccn(88).ccv(127) // Heavy Reverb Mix
+    .ccn(89).ccv(100) // Reverb Wet Scale
+).cpm(120/4)
