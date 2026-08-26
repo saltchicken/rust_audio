@@ -14,6 +14,26 @@ pub struct AudioEngine {
     host: cpal::Host,
 }
 
+// Helper to scan the presets directory for hot-swapping
+fn get_available_presets() -> Vec<String> {
+    let mut presets = Vec::new();
+    if let Ok(entries) = std::fs::read_dir("presets") {
+        for entry in entries.flatten() {
+            if let Ok(file_type) = entry.file_type() {
+                if file_type.is_file() {
+                    if let Some(name) = entry.file_name().to_str() {
+                        if name.ends_with(".toml") {
+                            presets.push(format!("presets/{}", name));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    presets.sort();
+    presets
+}
+
 impl AudioEngine {
     pub fn new(config: MixerConfig) -> Self {
         Self {
@@ -73,7 +93,10 @@ impl AudioEngine {
         Ok((output_device, output_stream_config))
     }
 
-    pub fn run(&mut self) -> anyhow::Result<bool> {
+    pub fn run(&mut self, current_preset: &str) -> anyhow::Result<Option<String>> {
+        // Broadcast the active preset path so the plugins know which file to load!
+        std::env::set_var("CURRENT_PRESET_PATH", current_preset);
+
         let (output_device, output_stream_config) = self.setup_output_device()?;
         let channels = output_stream_config.channels as usize;
         let sample_rate = output_stream_config.sample_rate.0;
@@ -404,8 +427,17 @@ impl AudioEngine {
             None,
         )?;
 
+        let presets = get_available_presets();
+
         println!("\r\n🚀 Engine running at {}Hz!\r", sample_rate);
-        println!("👉 Press 'r' to reload config, 'q' or Esc to quit.\r");
+        println!("👉 Active Preset: {}\r", current_preset);
+        println!("👉 Press 'r' to reload, 'q' or Esc to quit.\r");
+        
+        for (i, p) in presets.iter().enumerate() {
+            if i < 9 {
+                println!("👉 Press '{}' to load {}\r", i + 1, p);
+            }
+        }
 
         output_stream.play()?;
 
@@ -414,16 +446,25 @@ impl AudioEngine {
                 if let Event::Key(event) = read()? {
                     match event.code {
                         KeyCode::Char('r') | KeyCode::Char('R') => {
-                            println!("\r\n🔄 Reloading audio engine and config...\r");
-                            return Ok(true);
+                            println!("\r\n🔄 Reloading audio engine...\r");
+                            return Ok(Some(current_preset.to_string()));
                         }
                         KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                             println!("\r\n🛑 Shutting down...\r");
-                            return Ok(false);
+                            return Ok(None);
                         }
                         KeyCode::Char('c') if event.modifiers.contains(KeyModifiers::CONTROL) => {
                             println!("\r\n🛑 Shutting down...\r");
-                            return Ok(false);
+                            return Ok(None);
+                        }
+                        // 1-9 Hot Swapping!
+                        KeyCode::Char(c) if c.is_digit(10) => {
+                            let digit = c.to_digit(10).unwrap() as usize;
+                            if digit > 0 && digit <= presets.len() {
+                                let new_preset = &presets[digit - 1];
+                                println!("\r\n🔄 Hot-swapping to preset: {}\r", new_preset);
+                                return Ok(Some(new_preset.clone()));
+                            }
                         }
                         _ => {}
                     }

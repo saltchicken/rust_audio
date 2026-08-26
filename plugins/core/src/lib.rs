@@ -5,23 +5,29 @@ use std::fs;
 
 // --- 1. Global Configuration Extractor ---
 
-fn get_cli_config_path() -> String {
+fn get_preset_path() -> String {
+    // 1. Prioritize hot-swapped preset path injected by the audio engine
+    if let Ok(path) = env::var("CURRENT_PRESET_PATH") {
+        return path;
+    }
+
+    // 2. Fallback to CLI args (useful if you ever debug plugins standalone)
     let args: Vec<String> = env::args().collect();
     let mut i = 1;
     while i < args.len() {
-        if args[i] == "--config" && i + 1 < args.len() {
+        if args[i] == "--preset" && i + 1 < args.len() {
             return args[i + 1].clone();
         }
         i += 1;
     }
-    "config.toml".to_string() // Fallback
+    "presets/default.toml".to_string() // Fallback
 }
 
 pub fn load_plugin_config<T>(plugin_name: &str) -> T
 where
     T: DeserializeOwned + Default + Clone,
 {
-    let config_path = get_cli_config_path();
+    let config_path = get_preset_path();
     let config_str = fs::read_to_string(&config_path).unwrap_or_default();
 
     // The host injects the track's index into the environment right before activation
@@ -41,8 +47,8 @@ where
     }
 
     println!(
-        "Warning: Config for plugin '{}' on track index '{}' not found, using default.",
-        plugin_name, track_idx
+        "Warning: Config for plugin '{}' on track index '{}' not found in '{}', using default.",
+        plugin_name, track_idx, config_path
     );
     T::default()
 }

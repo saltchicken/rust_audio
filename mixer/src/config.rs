@@ -1,3 +1,4 @@
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::fs;
 
@@ -12,6 +13,21 @@ pub struct TrackConfig {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EngineConfig {
+    pub master_volume: Option<f32>,
+    pub sample_rate: u32,
+    pub latency_ms: f32,
+    pub capacity_seconds: f32,
+    pub input_device: String,
+    pub output_device: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Preset {
+    pub track: Vec<TrackConfig>,
+}
+
+#[derive(Debug, Clone)]
 pub struct MixerConfig {
     pub master_volume: Option<f32>,
     pub sample_rate: u32,
@@ -22,7 +38,7 @@ pub struct MixerConfig {
     pub track: Vec<TrackConfig>,
 }
 
-impl Default for MixerConfig {
+impl Default for EngineConfig {
     fn default() -> Self {
         Self {
             master_volume: Some(1.0),
@@ -31,25 +47,32 @@ impl Default for MixerConfig {
             capacity_seconds: 0.5,
             input_device: "default".to_string(),
             output_device: "default".to_string(),
-            track: vec![TrackConfig {
-                name: "Default Track".to_string(),
-                midi_channel: None,
-                enable_live_input: false,
-                plugin_chain: vec![],
-                plugins: toml::Table::new(),
-            }],
         }
     }
 }
 
-pub fn load_or_create_config(path: &str) -> anyhow::Result<MixerConfig> {
-    if let Ok(config_str) = fs::read_to_string(path) {
-        let config: MixerConfig = toml::from_str(&config_str)?;
-        Ok(config)
+pub fn load_config_and_preset(config_path: &str, preset_path: &str) -> anyhow::Result<MixerConfig> {
+    let engine_config: EngineConfig = if let Ok(config_str) = fs::read_to_string(config_path) {
+        toml::from_str(&config_str).context("Failed to parse engine config.toml")?
     } else {
-        let default_config = MixerConfig::default();
+        let default_config = EngineConfig::default();
         let toml_string = toml::to_string_pretty(&default_config)?;
-        fs::write(path, toml_string)?;
-        Ok(default_config)
-    }
+        fs::write(config_path, toml_string)?;
+        default_config
+    };
+
+    let preset_str = fs::read_to_string(preset_path)
+        .with_context(|| format!("Failed to find preset file: {}", preset_path))?;
+    let preset: Preset = toml::from_str(&preset_str)
+        .with_context(|| format!("Failed to parse preset file: {}", preset_path))?;
+
+    Ok(MixerConfig {
+        master_volume: engine_config.master_volume,
+        sample_rate: engine_config.sample_rate,
+        latency_ms: engine_config.latency_ms,
+        capacity_seconds: engine_config.capacity_seconds,
+        input_device: engine_config.input_device,
+        output_device: engine_config.output_device,
+        track: preset.track,
+    })
 }
