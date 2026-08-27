@@ -8,10 +8,21 @@ const drums = (pat) => pat.midichan(10).midi();
 const lead = (pat) => pat.midichan(1).midi();
 const bass = (pat) => pat.midichan(2).midi();
 
-const p_drums = stack(
+const d1 = stack(
   drums(note("36")),
   drums(note("42*2")).velocity(0.5)
 );
+
+const d2 = stack(
+  drums(note("36")),
+  drums(note("42*4")).velocity(0.5)
+);
+
+const p_drums = cat(
+  ...Array(8).fill(d1),
+  ...Array(8).fill(d2)
+);
+
 
 const l1 = n("[0 2 4 6 4 2]!4");
 const l2 = n("[9 7 5 4 2 0]!4");
