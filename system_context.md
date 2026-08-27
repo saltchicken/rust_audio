@@ -65,3 +65,10 @@ When generating code for this specific setup, follow these structural rules base
    *(e.g., `const drums = (pat) => pat.midichan(10).midi();`)*
 4. **Modular Pattern Composition:** Break complex sequences into smaller, reusable variables (e.g., `l1`, `l2`, `patA`). Use arrays, the `cat()` function, and the spread operator (`...`) to sequence larger, evolving phrases structurally. 
 5. **Final Output Stack:** The script must end with a single, unified `stack()` that combines all the master track patterns (e.g., `stack(p_drums, p_lead, p_bass, p_moog)`). Do not leave unassigned patterns floating outside of this final stack.
+
+### 5. Long-Form Arrangement Guidelines (16+ Bars)
+When requested to create long-form variations or complete arrangements, abandon static 1-bar or 4-bar loops and apply the following macro-structuring techniques:
+
+1. **Multiline Alternation Syntax:** Use Strudel's `< >` alternation syntax wrapped in JavaScript multiline template literals (`` `<...>` ``). Format long sequences cleanly over multiple lines, aligning bars/phrases visually so the structure is easily readable.
+2. **Harmonic Journey:** Establish a clear chord progression that evolves over the macro-loop (e.g., moving to a relative major, a suspended chord, or creating tension before resolving). Use `.add(note("<0 -2 -4 5>"))` on basslines and arpeggios to accurately track the root notes of this progression.
+3. **Energy Curve:** Actively shape the rhythmic density over time. Start sparse in the early bars (using rests `~` and standard 4th/8th notes), and progressively introduce complex subdivisions (`*2`, `*3`, `*4`) to build tension toward a climax at the end of the sequence before the macro-loop resets.
