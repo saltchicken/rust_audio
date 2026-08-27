@@ -1,33 +1,19 @@
 stack(
-  // ==========================================
-  // DRUM MACHINE (Channel 10 / Rust Ch 9)
-  // ==========================================
   stack(
-    // Kick (36) - Driving rock syncopation
     note("<[36 36 ~ 36] [36 ~ 36 36]>*2"),
-    
-    // Snare (38) - Solid backbeat on 2 and 4
     note("[~ 38]*2"),
-    
-    // Hi-hat (42) - Frantic 16th notes
     note("42*8"),
-    
-    // Toms (50, 47, 43) - Descending drum fill every 4th bar
     note("<~ ~ ~ [~ 50 47 43]>"),
 
     // Modulate the Kick Decay (CC 16) for a breathing low-end feel
     ccv(sine.range(0.25, 0.9).slow(8)).ccn(16)
   ).midichan(10).midi(),
 
-  // ==========================================
-  // BASS LINE (Channel 2 / Rust Ch 1)
-  // ==========================================
-  // A classic i - VI - III - VII progression (C minor)
   stack(
-    // Base rhythm extracted via .struct(), with algorithmic octave leaps
-    note("<c2 ab1 eb2 bb1>")
+    "<c2 ab1 eb2 bb1>"
       .struct("[x x x ~ x x ~ x]*2")
-      .add("<0 [0 12] 0 [0 12 0 12]>"),
+      // .add("<0 [0 12] 0 [0 12 0 12]>")
+      .note(),
       
     // Fast LFO sweeping the Filter Cutoff (CC 74) for acid grit
     ccv(saw.range(0.3, 0.9).fast(4)).ccn(74),
@@ -39,12 +25,7 @@ stack(
     ccv(0.4).ccn(15)
   ).midichan(2).midi(),
 
-  // ==========================================
-  // ACID PLUCK (Channel 3 / Rust Ch 2)
-  // ==========================================
-  // Fast 16-bit style counter-melody backing the lead
   stack(
-    // Explicitly patterned 16th-note arpeggios
     note("<[c4 eb4 g4 eb4] [ab3 c4 eb4 c4] [eb4 g4 bb4 g4] [bb3 d4 f4 d4]>")
       .fast(2),
       
@@ -52,21 +33,16 @@ stack(
     ccv(sine.range(0.2, 0.8).slow(4)).ccn(74)
   ).midichan(3).midi(),
 
-  // ==========================================
-  // SYNTH LEAD (Channel 1 / Rust Ch 0)
-  // ==========================================
-  // Heroic, soaring melody utilizing rhythmic extraction
   stack(
-    // Base melodic contour
-    note("< <c5 eb5 g5> <f5 d5 bb4> <eb5 c5 g4> <d5 bb4 f4> >")
-      .add("<0 12>") // Alternating registers for a wider scope
-      // Complex rhythmic extraction carved out of the sustained notes
-      .struct("<[x ~ ~ x ~ x x ~] [x x ~ x ~ ~ x x]>*2"),
+    "< <c5 eb5 g5> <f5 d5 bb4> <eb5 c5 g4> <d5 bb4 f4> >"
+      // .add("<0 12>") // Alternating registers for a wider scope
+      .struct("<[x ~ ~ x ~ x x ~] [x x ~ x ~ ~ x x]>*2")
+      .note(),
       
-    // Synthesizer ADSR shaping
+    // // Synthesizer ADSR shaping
     ccv(0.1).ccn(20), // Fast Attack (CC 20)
     ccv(0.5).ccn(21), // Medium Release (CC 21)
-    
+
     // Delay Effects Chain for retro echoing
     ccv(0.6).ccn(86), // Delay Mix (CC 86)
     ccv(0.5).ccn(85), // Delay Feedback (CC 85)
@@ -76,4 +52,4 @@ stack(
     ccv(0.7).ccn(90)
   ).midichan(1).midi()
 
-).cpm(165/4) // High energy tempo set at the global stack level
+).cpm(165/4)
