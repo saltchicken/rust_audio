@@ -11,7 +11,7 @@ The Rust engine is hardcoded to listen on specific MIDI channels for specific in
 | :--- | :--- | :--- | :--- |
 | **Synth Lead** | 1 (Rust Ch 0) | `.midichan(1).midi()` | Smooth sine synth with anti-click env. |
 | **Bass Line** | 2 (Rust Ch 1) | `.midichan(2).midi()` | Analog-style saw/square with sub-osc & filter. |
-| **Moog Pluck** | 3 (Rust Ch 2) | `.midichan(3).midi()` | TODO: Add description here |
+| **Moog Pluck** | 3 (Rust Ch 2) | `.midichan(3).midi()` | Analog-style Moog synthesizer with 24dB/octave ladder filter for resonant, squelchy tones. |
 | **Drum Machine** | 10 (Rust Ch 9)| `.midichan(10).midi()` | Synthesized 808-style drum machine. |
 
 ### 2. Drum Kit Mapping (Channel 10)
@@ -35,7 +35,7 @@ The custom Rust plugins expose their DSP parameters via MIDI CC. You can modulat
 *   **CC 14**: Sub Mix (Bass only)
 *   **CC 15**: Amp Decay (Bass only)
 *   **CC 74**: Filter Cutoff Hz (Bass/Moog)
-*   **CC 71**: Filter Envelope Mod (Bass/Moog)
+*   **CC 71**: Filter Envelope Mod (Bass) / Filter Resonance (Moog)
 *   **CC 20**: Attack MS (Synth only)
 *   **CC 21**: Release MS (Synth only)
 *   **CC 7**: Volume (Synth only)
@@ -55,6 +55,13 @@ The custom Rust plugins expose their DSP parameters via MIDI CC. You can modulat
 *   *Vibrato:* **CC 90** (Rate), **CC 91** (Depth), **CC 92** (Mix)
 
 ### 4. Strudel Best Practices & Idioms
-When generating code for this specific setup, follow these structural rules:
+When generating code for this specific setup, follow these structural rules based on the provided formatting templates:
 
-TODO: Rewrite these structural rules based on format_example.str
+1. **BPM Initialization:** Always define and call a BPM helper function at the very top of the script:
+   `const setBpm = (bpm) => setcpm(bpm / 4);`
+   `setBpm(120);`
+2. **Constants for Scales:** Define your musical scales as constants at the top to maintain harmonic consistency across tracks (e.g., `const LEAD_SCALE = 'C3:pentatonic';`).
+3. **Instrument Helper Functions:** Define semantic wrappers for MIDI channels to keep the pattern code clean and readable. 
+   *(e.g., `const drums = (pat) => pat.midichan(10).midi();`)*
+4. **Modular Pattern Composition:** Break complex sequences into smaller, reusable variables (e.g., `l1`, `l2`, `patA`). Use arrays, the `cat()` function, and the spread operator (`...`) to sequence larger, evolving phrases structurally. 
+5. **Final Output Stack:** The script must end with a single, unified `stack()` that combines all the master track patterns (e.g., `stack(p_drums, p_lead, p_bass, p_moog)`). Do not leave unassigned patterns floating outside of this final stack.
