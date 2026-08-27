@@ -173,7 +173,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
         events: Events,
     ) -> Result<ProcessStatus, PluginError> {
         let frames = audio.frames_count() as usize;
-        
+
         if self.block_buffer.len() < frames {
             self.block_buffer.resize(frames, 0.0);
         }
@@ -189,21 +189,27 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
                             let vel = note_on.velocity() as f32;
 
                             let drum_info = match key {
-                                36 => Some((0, self.config.kick_decay_ms)),  
-                                38 => Some((1, self.config.snare_decay_ms)), 
-                                42 => Some((2, self.config.hihat_decay_ms)), 
-                                43 => Some((3, self.config.tom_decay_ms)),   
-                                47 => Some((4, self.config.tom_decay_ms)),   
-                                50 => Some((5, self.config.tom_decay_ms)),   
+                                36 => Some((0, self.config.kick_decay_ms)),
+                                38 => Some((1, self.config.snare_decay_ms)),
+                                42 => Some((2, self.config.hihat_decay_ms)),
+                                43 => Some((3, self.config.tom_decay_ms)),
+                                47 => Some((4, self.config.tom_decay_ms)),
+                                50 => Some((5, self.config.tom_decay_ms)),
                                 _ => None,
                             };
 
                             if let Some((inst, decay)) = drum_info {
-                                let voice_idx = self.voices.iter().position(|v| !v.active)
+                                let voice_idx = self
+                                    .voices
+                                    .iter()
+                                    .position(|v| !v.active)
                                     .unwrap_or_else(|| {
-                                        self.voices.iter().enumerate()
+                                        self.voices
+                                            .iter()
+                                            .enumerate()
                                             .min_by(|a, b| a.1.env.partial_cmp(&b.1.env).unwrap())
-                                            .map(|(idx, _)| idx).unwrap_or(0)
+                                            .map(|(idx, _)| idx)
+                                            .unwrap_or(0)
                                     });
                                 self.voices[voice_idx].trigger(inst, vel, decay, self.sample_rate);
                             }

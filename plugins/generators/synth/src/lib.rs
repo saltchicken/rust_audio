@@ -182,10 +182,19 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
                         if let clack_plugin::events::Match::Specific(k) = note_on.key() {
                             let key = k as i16;
                             let vel = note_on.velocity() as f32;
-                            let voice_idx = self.voices.iter().enumerate()
+                            let voice_idx = self
+                                .voices
+                                .iter()
+                                .enumerate()
                                 .min_by(|a, b| a.1.env.level.partial_cmp(&b.1.env.level).unwrap())
-                                .map(|(idx, _)| idx).unwrap_or(0);
-                            self.voices[voice_idx].trigger(key, vel, &self.config, self.sample_rate);
+                                .map(|(idx, _)| idx)
+                                .unwrap_or(0);
+                            self.voices[voice_idx].trigger(
+                                key,
+                                vel,
+                                &self.config,
+                                self.sample_rate,
+                            );
                         }
                     } else if let Some(note_off) = event.as_event::<NoteOffEvent>() {
                         if let clack_plugin::events::Match::Specific(k) = note_off.key() {

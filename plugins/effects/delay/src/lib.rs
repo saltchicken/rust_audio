@@ -84,10 +84,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
         let left_ms = calc_ms(config.left_delay_beats, config.left_delay_ms, config.bpm);
         let right_ms = calc_ms(config.right_delay_beats, config.right_delay_ms, config.bpm);
 
-        let channels = vec![
-            EchoDelay::new(sr, left_ms),
-            EchoDelay::new(sr, right_ms),
-        ];
+        let channels = vec![EchoDelay::new(sr, left_ms), EchoDelay::new(sr, right_ms)];
 
         Ok(Self { channels, config })
     }

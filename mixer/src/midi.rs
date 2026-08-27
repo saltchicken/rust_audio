@@ -38,8 +38,15 @@ where
                         let normalized_vel = velocity_or_val as f32 / 127.0;
 
                         if status_nibble == 0x90 && velocity_or_val > 0 {
-                            on_message(MidiMsg::NoteOn(channel, note_or_cc, normalized_vel, stamp_us));
-                        } else if status_nibble == 0x80 || (status_nibble == 0x90 && velocity_or_val == 0) {
+                            on_message(MidiMsg::NoteOn(
+                                channel,
+                                note_or_cc,
+                                normalized_vel,
+                                stamp_us,
+                            ));
+                        } else if status_nibble == 0x80
+                            || (status_nibble == 0x90 && velocity_or_val == 0)
+                        {
                             on_message(MidiMsg::NoteOff(channel, note_or_cc, stamp_us));
                         } else if status_nibble == 0xB0 {
                             on_message(MidiMsg::Cc(channel, note_or_cc, velocity_or_val, stamp_us));

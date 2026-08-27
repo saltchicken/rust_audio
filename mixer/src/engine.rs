@@ -196,17 +196,21 @@ impl AudioEngine {
                 }
 
                 if !msgs.is_empty() {
-                    let first_stamp = msgs.first().map(|m| match m {
-                        MidiMsg::NoteOn(_, _, _, s) => *s,
-                        MidiMsg::NoteOff(_, _, s) => *s,
-                        MidiMsg::Cc(_, _, _, s) => *s,
-                    }).unwrap_or(0);
+                    let first_stamp = msgs
+                        .first()
+                        .map(|m| match m {
+                            MidiMsg::NoteOn(_, _, _, s) => *s,
+                            MidiMsg::NoteOff(_, _, s) => *s,
+                            MidiMsg::Cc(_, _, _, s) => *s,
+                        })
+                        .unwrap_or(0);
 
                     for msg in msgs {
                         match msg {
                             MidiMsg::NoteOn(ch, note, velocity, s) => {
                                 let offset_us = s.saturating_sub(first_stamp);
-                                let mut time = ((offset_us as f64 / 1_000_000.0) * sample_rate as f64) as u32;
+                                let mut time =
+                                    ((offset_us as f64 / 1_000_000.0) * sample_rate as f64) as u32;
                                 time = time.min((frames as u32).saturating_sub(1));
 
                                 for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
@@ -224,7 +228,8 @@ impl AudioEngine {
                             }
                             MidiMsg::NoteOff(ch, note, s) => {
                                 let offset_us = s.saturating_sub(first_stamp);
-                                let mut time = ((offset_us as f64 / 1_000_000.0) * sample_rate as f64) as u32;
+                                let mut time =
+                                    ((offset_us as f64 / 1_000_000.0) * sample_rate as f64) as u32;
                                 time = time.min((frames as u32).saturating_sub(1));
 
                                 for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
@@ -242,18 +247,16 @@ impl AudioEngine {
                             }
                             MidiMsg::Cc(ch, controller, value, s) => {
                                 let offset_us = s.saturating_sub(first_stamp);
-                                let mut time = ((offset_us as f64 / 1_000_000.0) * sample_rate as f64) as u32;
+                                let mut time =
+                                    ((offset_us as f64 / 1_000_000.0) * sample_rate as f64) as u32;
                                 time = time.min((frames as u32).saturating_sub(1));
 
                                 for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
                                     if track_cfg.midi_channel.is_none()
                                         || track_cfg.midi_channel == Some(ch)
                                     {
-                                        let event = MidiEvent::new(
-                                            time,
-                                            0,
-                                            [0xB0 | ch, controller, value],
-                                        );
+                                        let event =
+                                            MidiEvent::new(time, 0, [0xB0 | ch, controller, value]);
                                         tracks_events[track_idx].0.push(&event);
                                     }
                                 }
@@ -336,7 +339,7 @@ impl AudioEngine {
         println!("\r\n🚀 Engine running at {}Hz!\r", sample_rate);
         println!("👉 Active Preset: {}\r", current_preset);
         println!("👉 Press 'r' to reload, 'q' or Esc to quit.\r");
-        
+
         for (i, p) in presets.iter().enumerate() {
             if i < 9 {
                 println!("👉 Press '{}' to load {}\r", i + 1, p);

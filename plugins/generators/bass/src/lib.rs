@@ -24,7 +24,7 @@ struct BassConfig {
     filter_decay_ms: f32,
     filter_sustain: f32,
     filter_release_ms: f32,
-    
+
     input_mix: f32,
 }
 
@@ -46,7 +46,7 @@ impl Default for BassConfig {
             filter_decay_ms: 100.0,
             filter_sustain: 0.2,
             filter_release_ms: 60.0,
-            
+
             input_mix: 1.0,
         }
     }
@@ -197,7 +197,11 @@ impl Voice {
         let main_osc = if config.waveform == 0 {
             self.phase * 2.0 - 1.0
         } else {
-            if self.phase < 0.5 { 1.0 } else { -1.0 }
+            if self.phase < 0.5 {
+                1.0
+            } else {
+                -1.0
+            }
         };
 
         let sub_osc = (self.sub_phase * 2.0 * PI).sin();
@@ -273,10 +277,21 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyBassProcessor {
                         if let clack_plugin::events::Match::Specific(k) = note_on.key() {
                             let key = k as i16;
                             let vel = note_on.velocity() as f32;
-                            let voice_idx = self.voices.iter().enumerate()
-                                .min_by(|a, b| a.1.amp_env.level.partial_cmp(&b.1.amp_env.level).unwrap())
-                                .map(|(idx, _)| idx).unwrap_or(0);
-                            self.voices[voice_idx].trigger(key, vel, &self.config, self.sample_rate);
+                            let voice_idx = self
+                                .voices
+                                .iter()
+                                .enumerate()
+                                .min_by(|a, b| {
+                                    a.1.amp_env.level.partial_cmp(&b.1.amp_env.level).unwrap()
+                                })
+                                .map(|(idx, _)| idx)
+                                .unwrap_or(0);
+                            self.voices[voice_idx].trigger(
+                                key,
+                                vel,
+                                &self.config,
+                                self.sample_rate,
+                            );
                         }
                     } else if let Some(note_off) = event.as_event::<NoteOffEvent>() {
                         if let clack_plugin::events::Match::Specific(k) = note_off.key() {

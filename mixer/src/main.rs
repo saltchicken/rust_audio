@@ -37,8 +37,9 @@ fn main() -> anyhow::Result<()> {
     let _guard = RawModeGuard;
 
     loop {
-        // Now returns both the combined configurations AND the finalized path it resolved to 
-        let (app_config, active_preset) = load_config_and_preset(&config_path, preset_path.as_deref())?;
+        // Now returns both the combined configurations AND the finalized path it resolved to
+        let (app_config, active_preset) =
+            load_config_and_preset(&config_path, preset_path.as_deref())?;
         let mut engine = AudioEngine::new(app_config);
 
         match engine.run(&active_preset) {

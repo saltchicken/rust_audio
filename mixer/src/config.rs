@@ -43,7 +43,10 @@ impl Default for EngineConfig {
     }
 }
 
-pub fn load_config_and_preset(config_path: &str, preset_path: Option<&str>) -> anyhow::Result<(MixerConfig, String)> {
+pub fn load_config_and_preset(
+    config_path: &str,
+    preset_path: Option<&str>,
+) -> anyhow::Result<(MixerConfig, String)> {
     let engine_config: EngineConfig = if let Ok(config_str) = fs::read_to_string(config_path) {
         toml::from_str(&config_str).context("Failed to parse engine config.toml")?
     } else {
