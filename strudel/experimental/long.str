@@ -1,0 +1,106 @@
+const setBpm = (bpm) => setcpm(bpm / 4);
+setBpm(155);
+
+const drums = (pat) => pat.midichan(10).midi();
+const lead = (pat) => pat.midichan(1).midi();
+const bass = (pat) => pat.midichan(2).midi();
+const moog = (pat) => pat.midichan(3).midi();
+
+const p_drums = drums(stack(
+  // KICKS: Evolving from steady 4-on-the-floor to heavy breakbeat rolls
+  note(`<
+    [36 ~ 36 ~] [36 36*2 36 ~] [36 ~ 36 36*2] [36*3 ~ 36 ~]
+    [36 36 36 ~] [36 ~ 36 36*3] [36 36*2 36 36] [36*4 ~ 36 ~]
+    [36 ~ ~ 36] [~ 36 36 ~] [36 36 ~ 36] [~ 36*2 36 36]
+    [36 36 36 36] [36 36 36 36*2] [36*2 36*2 36*2 36*2] [36*4 36*4 36*4 36*4]
+  >`),
+  // SNARES: Consistent backbeat that gets increasingly glitched
+  note(`<
+    [~ 38 ~ 38] [~ 38 ~ 38] [~ 38 ~ 38] [~ 38 38 38*2]
+    [~ 38 ~ 38] [~ 38 ~ 38] [~ 38 ~ 38] [~ 38*3 ~ 38*3]
+    [~ 38 ~ 38] [~ 38 ~ 38*2] [~ 38 ~ 38] [~ 38 38*2 38*2]
+    [~ 38 ~ 38] [~ 38 38 38] [~ 38*2 ~ 38*2] [38*4 38*4 38*4 38*4]
+  >`),
+  // HATS: Closed -> Open -> Syncopated -> Frantic 16ths/32nds
+  note(`<
+    [42*4] [42*4] [42*4] [42*4]
+    [46*4] [46*4] [46*4] [46*4]
+    [[42 46]*2] [[42 46]*2] [[42 46]*2] [[42 46]*2]
+    [[46 42 46 46]*2] [[46 42 46 46]*2] [46*8] [46*16]
+  >`),
+  // TOMS & FILLS: Sparse at first, filling up the 4th, 8th, 12th, and 16th bars
+  note(`<
+    [~] [~] [~] [50 47 43 43]
+    [~] [~] [~] [50*2 47*2 43*2 41*2]
+    [~] [50 ~ ~ 47] [~] [50*3 47*3 43*3 43*3]
+    [~] [~] [50*4 47*4] [43*8]
+  >`)
+));
+
+const p_lead = lead(
+  // 16 phrases mapping to the chord progression
+  note(`<
+    [a4 ~ c5 d5 e5 ~ g5 ~]
+    [a5 g5 e5 d5 c5 d5 e5 ~]
+    [g4 ~ b4 c5 d5 ~ e5 ~]
+    [g5 f5 d5 c5 b4 c5 d5 ~]
+    [f4 ~ a4 bb4 c5 ~ d5 ~]
+    [f5 d5 c5 bb4 a4 bb4 c5 ~]
+    [e4 ~ gs4 a4 b4 ~ d5 ~]
+    [e5 d5 b4 a4 gs4 a4 b4 ~]
+    [c5 ~ e5 f5 g5 ~ a5 ~]
+    [c6 b5 g5 f5 e5 f5 g5 ~]
+    [d5 ~ f5 g5 a5 ~ c6 ~]
+    [d6 c6 a5 g5 f5 g5 a5 ~]
+    [bb4 ~ d5 f5 bb5 ~ g5 ~]
+    [gs5 f5 e5 d5 b4 d5 e5 ~]
+    [a4 ~ c5 e5 a5 ~ c6 ~]
+    [a5 ~ cs6 e6 a6 gs6 e6 cs6]
+  >`).fast(2)
+);
+
+const p_bass = bass(
+  note("a2")
+    // Rhythm evolves from a groovy 16th syncopation to a massive wall of sound
+    .struct(`<
+      [x [~ x] x ~]*4
+      [x [~ x] x x]*4
+      [[~ x] x x ~]*4
+      [x x [~ x] x]*4
+      [x*2 x [~ x] x]*4
+      [[~ x] x x*2 x]*4
+      [x x x x]*4
+      [x*2 x*2 x x]*4
+      [[~ x] [~ x] x x]*4
+      [x ~ x x]*4
+      [[~ x] x [~ x] x]*4
+      [x*2 x*2 [~ x] x]*4
+      [x x [~ x] x]*4
+      [x x x*2 x]*4
+      [x*2 x*2 x*2 x*2]*4
+      [x*4 x*4 x*4 x*4]*4
+    >`)
+    // Transposes A2 into 16 distinct root notes matching the Acid chords
+    .add(note("<0 0 -2 -2 -4 -4 -5 -5 3 3 5 5 1 -5 0 0>"))
+);
+
+const p_moog = moog(
+  // 16 continuous chord arpeggios that build up tension
+  note(`<
+    [a3 c4 e4 a4] [a3 c4 e4 c5]
+    [g3 b3 d4 g4] [g3 b3 d4 b4]
+    [f3 a3 c4 f4] [f3 a3 c4 a4]
+    [e3 gs3 b3 e4] [e3 gs3 b3 gs4]
+    [c3 e3 g3 c4] [c3 e3 g3 e4]
+    [d3 f3 a3 d4] [d3 f3 a3 f4]
+    [bb2 d3 f3 bb3] [e3 gs3 b3 e4]
+    [a3 c4 e4 a4] [a3 cs4 e4 a4]
+  >`).fast(4)
+);
+
+stack(
+  p_drums,
+  p_lead,
+  p_bass,
+  p_moog
+)

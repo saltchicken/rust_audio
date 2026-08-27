@@ -1,0 +1,78 @@
+const setBpm = (bpm) => setcpm(bpm / 4);
+setBpm(95); // Dropped down for a slower, heavier groove
+
+const drums = (pat) => pat.midichan(10).midi();
+const lead = (pat) => pat.midichan(1).midi();
+const bass = (pat) => pat.midichan(2).midi();
+const moog = (pat) => pat.midichan(3).midi();
+
+const p_drums = drums(stack(
+  // KICKS: Spaced out and syncopated, avoiding the constant 4-on-the-floor
+  note(`<
+    [36 ~ ~ 36] [36 ~ 36 ~] [36 ~ ~ 36] [36 ~ ~ ~]
+    [36 ~ ~ 36] [36 ~ 36*2 ~] [36 ~ ~ 36] [36 ~ 36 36*2]
+    [36 ~ ~ 36] [36 ~ 36 ~] [36 ~ 36 36] [36 ~ ~ ~]
+    [36 ~ ~ 36] [36 ~ 36*2 ~] [36 ~ 36 ~] [36*2 36*2 36*3 36*4]
+  >`),
+  // SNARES: A lazy, heavy backbeat on the 2 and 4, catching ghost notes at the end of phrases
+  note(`<
+    [~ 38 ~ 38] [~ 38 ~ 38] [~ 38 ~ 38] [~ 38 ~ 38*2]
+    [~ 38 ~ 38] [~ 38 ~ 38] [~ 38 ~ 38] [~ 38 ~ 38*3]
+    [~ 38 ~ 38] [~ 38 ~ 38*2] [~ 38 ~ 38] [~ 38 ~ 38]
+    [~ 38 ~ 38] [~ 38 ~ 38] [~ 38 ~ 38] [38*2 38*2 38*4 38*4]
+  >`),
+  // HATS: Slower 8th notes evolving into tight, trap-style 16th/32nd trills
+  note(`<
+    [42 42 42 42] [42 42 42 42] [42 42 42 42] [42 42 42 46]
+    [42 42 42 42] [42 42 42 42] [42 42 42 42] [42 42 46*2 46]
+    [[42 42]*2] [[42 42]*2] [[42 42]*2] [[42 42]*2]
+    [[42 42]*2] [[42 46]*2] [46*4 46*4 46*4 46*4] [46*8 46*8 46*8 46*8]
+  >`),
+  // PERCUSSION: Sparse, dub-like rimshots and rim clicks filling the empty space
+  note(`<
+    [~] [~ 37 ~ ~] [~] [~ ~ 37 ~]
+    [~] [~ 37 ~ ~] [~] [~ 37*2 ~ 37]
+    [~] [~ 37 ~ ~] [~] [~ ~ 37 ~]
+    [~] [~ 37 ~ ~] [37*2 ~ 37*2 ~] [37*4]
+  >`)
+));
+
+const p_lead = lead(
+  // A melancholy, drawn-out melody that glides over the chord changes
+  note(`<
+    [c5 ~ ~ d5] [eb5 ~ c5 ~] [~ g5 ~ f5] [eb5 d5 c5 ~]
+    [ab5 ~ ~ g5] [f5 ~ eb5 ~] [~ d5 ~ c5] [d5 eb5 ~ ~]
+    [g5 ~ ~ f5] [eb5 ~ d5 ~] [~ c5 ~ bb4] [c5 d5 ~ ~]
+    [f5 ~ ~ eb5] [d5 ~ c5 ~] [~ b4 ~ g4] [g5 f5 eb5 d5]
+  >`)
+);
+
+const p_bass = bass(
+  // A rolling, syncopated bassline that hits hard on the downbeats
+  note("c2")
+    .struct(`<
+      [x ~ ~ x] [~ x ~ ~] [x ~ x ~] [~ ~ x ~]
+      [x ~ ~ x] [~ x ~ x] [x ~ x ~] [x x ~ x]
+      [x ~ ~ x] [~ x ~ ~] [x ~ x ~] [~ ~ x ~]
+      [x ~ ~ x] [~ x ~ x] [x*2 x x ~] [x*4 x*4 x*4 x*4]
+    >`)
+    // Transposes root note C2 through the progression: C -> Ab -> Eb -> Bb -> G
+    .add(note("<0 0 0 0 -4 -4 -4 -4 3 3 3 3 -2 -2 -2 7>"))
+);
+
+const p_moog = moog(
+  // Halved speed (.fast(2) instead of .fast(4)) for a hypnotic, pulsing chord bed
+  note(`<
+    [c3 g3 c4 eb4] [c3 g3 d4 eb4] [c3 g3 c4 eb4] [c3 f3 c4 d4]
+    [ab2 eb3 ab3 c4] [ab2 eb3 bb3 c4] [ab2 eb3 ab3 c4] [ab2 d3 ab3 bb3]
+    [eb3 bb3 eb4 g4] [eb3 bb3 f4 g4] [eb3 bb3 eb4 g4] [eb3 a3 eb4 f4]
+    [bb2 f3 bb3 d4] [bb2 f3 c4 d4] [bb2 f3 bb3 d4] [g2 d3 g3 b3]
+  >`).fast(2)
+);
+
+stack(
+  p_drums,
+  p_lead,
+  p_bass,
+  p_moog
+)
