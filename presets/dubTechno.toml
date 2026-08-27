@@ -1,7 +1,6 @@
 [[track]]
 name = "Drum Machine"
 midi_channel = 9
-enable_live_input = false
 plugin_chain = [
   "target/release/libdrum_plugin.so"
 ]
@@ -18,7 +17,6 @@ tom_decay_ms = 150.0
 [[track]]
 name = "Synth Lead"
 midi_channel = 0
-enable_live_input = false
 plugin_chain = [
   "target/release/libsynth_plugin.so",
   "target/release/libcompressor_clap_plugin.so",
@@ -77,7 +75,6 @@ wet_scale = 0.08
 [[track]]
 name = "Bass Line"
 midi_channel = 1
-enable_live_input = false
 plugin_chain = [
   "target/release/libbass_plugin.so",
   "target/release/libcompressor_clap_plugin.so",
@@ -121,7 +118,6 @@ resonance = 0.4
 [[track]]
 name = "Acid Pluck"
 midi_channel = 2
-enable_live_input = false
 plugin_chain = [
   "target/release/libbass_plugin.so",
   "target/release/libdelay_clap_plugin.so",

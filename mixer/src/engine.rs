@@ -109,87 +109,6 @@ impl AudioEngine {
             let _ = midi_tx.push(msg);
         });
 
-        // --- LIVE INPUT SETUP ---
-        let mut opt_consumer = None;
-        let mut _input_stream_guard = None;
-
-        let any_live_input = self.config.track.iter().any(|t| t.enable_live_input);
-
-        if any_live_input {
-            let input_device = if self.config.input_device.to_lowercase() == "default" {
-                self.host
-                    .default_input_device()
-                    .expect("No default input device found")
-            } else {
-                self.host
-                    .input_devices()?
-                    .find(|d| {
-                        d.name()
-                            .map(|n| n == self.config.input_device)
-                            .unwrap_or(false)
-                    })
-                    .unwrap_or_else(|| panic!("Input device not found"))
-            };
-
-            println!("✅ Bound to Input:  {}\r", input_device.name()?);
-
-            let target_sr = cpal::SampleRate(sample_rate);
-            let supported_input_config = input_device
-                .supported_input_configs()?
-                .filter(|c| {
-                    c.channels() == 2
-                        && c.min_sample_rate() <= target_sr
-                        && c.max_sample_rate() >= target_sr
-                })
-                .min_by_key(|c| match c.buffer_size() {
-                    cpal::SupportedBufferSize::Range { min, .. } => *min,
-                    cpal::SupportedBufferSize::Unknown => u32::MAX,
-                })
-                .map(|c| c.with_sample_rate(target_sr))
-                .unwrap_or_else(|| {
-                    input_device
-                        .default_input_config()
-                        .expect("No default input config available")
-                });
-
-            let mut input_stream_config: cpal::StreamConfig = supported_input_config.clone().into();
-
-            if let cpal::SupportedBufferSize::Range { min, max } =
-                supported_input_config.buffer_size()
-            {
-                let desired = (*min).max(64).min(*max);
-                input_stream_config.buffer_size = cpal::BufferSize::Fixed(desired);
-                println!("⚡ Requested Input Buffer Size: {} frames\r", desired);
-            }
-
-            let latency_frames =
-                (self.config.latency_ms / 1_000.0) * input_stream_config.sample_rate.0 as f32;
-            let ring_capacity =
-                (self.config.capacity_seconds * input_stream_config.sample_rate.0 as f32) as usize
-                    * channels;
-
-            let ring = HeapRb::new(ring_capacity);
-            let (mut producer, consumer) = ring.split();
-            opt_consumer = Some(consumer);
-
-            let padding = vec![0.0f32; latency_frames as usize * channels];
-            producer.push_slice(&padding);
-
-            let input_stream = input_device.build_input_stream(
-                &input_stream_config,
-                move |data: &[f32], _: &_| {
-                    let _ = producer.push_slice(data);
-                },
-                |err| eprintln!("Input stream error: {}\r", err),
-                None,
-            )?;
-
-            input_stream.play()?;
-            _input_stream_guard = Some(input_stream);
-        } else {
-            println!("✅ Live input disabled for all tracks\r");
-        }
-
         let host_info = HostInfo::new(
             "Rust Synth Host",
             "My Company",
@@ -256,7 +175,6 @@ impl AudioEngine {
             output_ports_vec.push(AudioPorts::with_capacity(channels, 1));
         }
 
-        let mut interleaved_in = vec![0.0f32; max_frames as usize * channels];
         let master_volume = self.config.master_volume.unwrap_or(1.0);
         let config_tracks = self.config.track.clone();
 
@@ -265,13 +183,6 @@ impl AudioEngine {
             move |data: &mut [f32], _: &_| {
                 let samples_to_read = data.len();
                 let frames = samples_to_read / channels;
-
-                if let Some(consumer) = &mut opt_consumer {
-                    let read = consumer.pop_slice(&mut interleaved_in[..samples_to_read]);
-                    interleaved_in[read..samples_to_read].fill(0.0);
-                } else {
-                    interleaved_in[..samples_to_read].fill(0.0);
-                }
 
                 data.fill(0.0);
 
@@ -351,22 +262,15 @@ impl AudioEngine {
                     }
                 }
 
-                for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
+                for (track_idx, _track_cfg) in config_tracks.iter().enumerate() {
                     let processors = &mut tracks_processors[track_idx];
                     let (input_events_buffer, output_events_buffer) = &mut tracks_events[track_idx];
                     let intermediate_buffers = &mut tracks_intermediate_buffers[track_idx];
                     let input_ports = &mut input_ports_vec[track_idx];
                     let output_ports = &mut output_ports_vec[track_idx];
 
-                    for frame in 0..frames {
-                        for ch in 0..channels {
-                            if track_cfg.enable_live_input {
-                                intermediate_buffers[0][ch][frame] =
-                                    interleaved_in[frame * channels + ch];
-                            } else {
-                                intermediate_buffers[0][ch][frame] = 0.0;
-                            }
-                        }
+                    for ch in 0..channels {
+                        intermediate_buffers[0][ch][..frames].fill(0.0);
                     }
 
                     let mut current_in_buf = 0;
