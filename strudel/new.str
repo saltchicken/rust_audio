@@ -105,11 +105,11 @@ const mainLead = note("<[~ c5 d5 eb5] [g5 ~ f5 d5] [c5*2 ~ bb4 ~] [c5 ~ ~ ~]>")
 const p_lead = leadCh(stack(
   introLead,
   mainLead,
-  ccv(0.1).ccn(20), // Attack MS
-  ccv(0.4).ccn(21), // Release MS
-  ccv(0.8).ccn(7),  // Volume
-  ccv(0.6).ccn(88), // Reverb Mix
-  ccv(0.8).ccn(89)  // Reverb Wet Scale
+  // ccv(0.1).ccn(20), // Attack MS
+  // ccv(0.4).ccn(21), // Release MS
+  // ccv(0.8).ccn(7),  // Volume
+  // ccv(0.6).ccn(88), // Reverb Mix
+  // ccv(0.8).ccn(89)  // Reverb Wet Scale
 ));
 
 // --- FINAL OUTPUT STACK ---
