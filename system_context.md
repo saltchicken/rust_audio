@@ -74,5 +74,9 @@ When generating code for this specific setup, follow these structural rules base
 When requested to create long-form variations or complete arrangements, abandon static 1-bar or 4-bar loops and apply the following macro-structuring techniques:
 
 1. **Multiline Alternation Syntax:** Use Strudel's `< >` alternation syntax wrapped in JavaScript multiline template literals (`` `<...>` ``). Format long sequences cleanly over multiple lines, aligning bars/phrases visually so the structure is easily readable.
+
+> **CRITICAL RULE FOR STRUDEL STRINGS:** 
+> Never place JavaScript comments (`//` or `/* */`) inside Strudel mini-notation strings or multiline template literals (e.g., inside `note("< ... >")`). The Strudel parser will crash. All structural comments must be placed completely outside the backticks or quotes.
+
 2. **Harmonic Journey:** Establish a clear chord progression that evolves over the macro-loop (e.g., moving to a relative major, a suspended chord, or creating tension before resolving). Use `.add(note("<0 -2 -4 5>"))` on basslines and arpeggios to accurately track the root notes of this progression.
 3. **Energy Curve:** Actively shape the rhythmic density over time. Start sparse in the early bars (using rests `~` and standard 4th/8th notes), and progressively introduce complex subdivisions (`*2`, `*3`, `*4`) to build tension toward a climax at the end of the sequence before the macro-loop resets.
