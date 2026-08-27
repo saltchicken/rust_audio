@@ -1,55 +1,44 @@
+const setBpm = (bpm) => setcpm(bpm / 4);
+setBpm(165);
+
+const drums = (pat) => pat.midichan(10).midi();
+const lead = (pat) => pat.midichan(1).midi();
+const bass = (pat) => pat.midichan(2).midi();
+const acid = (pat) => pat.midichan(3).midi();
+
+const p_drums = drums(stack(
+  note("<[36 36 ~ 36] [36 ~ 36 36]>*2"),
+  note("[~ 38]*2"),
+  note("42*8"),
+  note("<~ ~ ~ [~ 50 47 43]>"),
+  ccv(sine.range(0.25, 0.9).slow(8)).ccn(16)
+));
+
+const p_bass = bass(stack(
+  "<c2 ab1 eb2 bb1>".struct("[x x x ~ x x ~ x]*2").note(),
+  ccv(saw.range(0.3, 0.9).fast(4)).ccn(74),
+  ccv(0.8).ccn(14),
+  ccv(0.4).ccn(15)
+));
+
+const p_acid = acid(stack(
+  note("<[c4 eb4 g4 eb4] [ab3 c4 eb4 c4] [eb4 g4 bb4 g4] [bb3 d4 f4 d4]>").fast(2),
+  ccv(sine.range(0.2, 0.8).slow(4)).ccn(74)
+));
+
+const p_lead = lead(stack(
+  "< <c5 eb5 g5> <f5 d5 bb4> <eb5 c5 g4> <d5 bb4 f4> >".struct("<[x ~ ~ x ~ x x ~] [x x ~ x ~ ~ x x]>*2").note(),
+  ccv(0.1).ccn(20), 
+  ccv(0.5).ccn(21), 
+  ccv(0.6).ccn(86), 
+  ccv(0.5).ccn(85), 
+  ccv(sine.range(0.2, 0.8).fast(8)).ccn(91),
+  ccv(0.7).ccn(90)
+));
+
 stack(
-  stack(
-    note("<[36 36 ~ 36] [36 ~ 36 36]>*2"),
-    note("[~ 38]*2"),
-    note("42*8"),
-    note("<~ ~ ~ [~ 50 47 43]>"),
-
-    // Modulate the Kick Decay (CC 16) for a breathing low-end feel
-    ccv(sine.range(0.25, 0.9).slow(8)).ccn(16)
-  ).midichan(10).midi(),
-
-  stack(
-    "<c2 ab1 eb2 bb1>"
-      .struct("[x x x ~ x x ~ x]*2")
-      // .add("<0 [0 12] 0 [0 12 0 12]>")
-      .note(),
-      
-    // Fast LFO sweeping the Filter Cutoff (CC 74) for acid grit
-    ccv(saw.range(0.3, 0.9).fast(4)).ccn(74),
-    
-    // Static Sub Mix (CC 14) cranked up to anchor the track
-    ccv(0.8).ccn(14),
-    
-    // Slight Amp Decay (CC 15) tweak for punchiness
-    ccv(0.4).ccn(15)
-  ).midichan(2).midi(),
-
-  stack(
-    note("<[c4 eb4 g4 eb4] [ab3 c4 eb4 c4] [eb4 g4 bb4 g4] [bb3 d4 f4 d4]>")
-      .fast(2),
-      
-    // Slower, evolving sine LFO on the Filter Cutoff (CC 74)
-    ccv(sine.range(0.2, 0.8).slow(4)).ccn(74)
-  ).midichan(3).midi(),
-
-  stack(
-    "< <c5 eb5 g5> <f5 d5 bb4> <eb5 c5 g4> <d5 bb4 f4> >"
-      // .add("<0 12>") // Alternating registers for a wider scope
-      .struct("<[x ~ ~ x ~ x x ~] [x x ~ x ~ ~ x x]>*2")
-      .note(),
-      
-    // // Synthesizer ADSR shaping
-    ccv(0.1).ccn(20), // Fast Attack (CC 20)
-    ccv(0.5).ccn(21), // Medium Release (CC 21)
-
-    // Delay Effects Chain for retro echoing
-    ccv(0.6).ccn(86), // Delay Mix (CC 86)
-    ccv(0.5).ccn(85), // Delay Feedback (CC 85)
-    
-    // Modulating Vibrato Depth (CC 91) and Rate (CC 90) for chiptune wobble
-    ccv(sine.range(0.2, 0.8).fast(8)).ccn(91),
-    ccv(0.7).ccn(90)
-  ).midichan(1).midi()
-
-).cpm(165/4)
+  p_drums,
+  p_bass,
+  p_acid,
+  p_lead
+)

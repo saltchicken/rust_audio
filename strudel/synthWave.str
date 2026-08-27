@@ -1,49 +1,37 @@
-stack(
-// ---------------------------------------------------------
-  // DRUM MACHINE (Rust Ch 9 = Strudel Ch 10)
-  // C1 = Kick (36)
-  // D1 = Snare (38)
-  // Gb1 = Hat (42)
-  // D2/B1/G1 = Toms (50, 47, 43)
-  // ---------------------------------------------------------
-  stack(
-    // Kick: 4-on-the-floor for 3 bars, drops out on beat 4 of the fill
-    note("<[36*4]!3 [36 36 36 ~]>"),
-    
-    // Snare: Standard on 2 & 4 for 3 bars, extra hits on the fill
-    note("<[~ 38 ~ 38]!3 [~ 38 38 [38 38]]>"), 
-    
-    // Hats: Consistent 8ths for 3 bars, opens up or changes on the fill
-    note("<[[~ 42]*4]!3 [42*8]>"), 
-    
-    // Toms: Rest (~) for 3 bars, then play the tom roll on the 4th bar
-    note("<~!3 [~ ~ [50 47] [43 43]]>")
-    
-  ).midichan(10).midi(),
+const setBpm = (bpm) => setcpm(bpm / 4);
+setBpm(115);
 
+const drums = (pat) => pat.midichan(10).midi();
+const lead = (pat) => pat.midichan(1).midi();
+const bass = (pat) => pat.midichan(2).midi();
+const acid = (pat) => pat.midichan(3).midi();
 
-  // ---------------------------------------------------------
-  // SYNTH LEAD MELODY (Rust Ch 0 = Strudel Ch 1)
-  // ---------------------------------------------------------
+const p_drums = drums(stack(
+  note("<[36*4]!3 [36 36 36 ~]>"),
+  note("<[~ 38 ~ 38]!3 [~ 38 38 [38 38]]>"),
+  note("<[[~ 42]*4]!3 [42*8]>"),
+  note("<~!3 [~ ~ [50 47] [43 43]]>")
+));
+
+const p_lead = lead(
   note("<~ [e4 g4 b4 d5] e4 [~ ~ [e4 g4 a4 b4] [d5 e5 g5 a5]]>/4")
-    .midichan(1).midi(),
+);
 
-
-  // ---------------------------------------------------------
-  // BASS LINE (Rust Ch 1 = Strudel Ch 2)
-  // ---------------------------------------------------------
+const p_bass = bass(
   note("e2")
     .struct("<[~ x]*4 [x*16] x [[x ~ ~ x] [~ x ~ ~] [x ~ x ~] [~ ~ x ~]]>/4")
     .add(note("<0 -4 -2 -5>/2"))
-    .midichan(2).midi(),
+);
 
-
-  // ---------------------------------------------------------
-  // ACID PLUCK (Rust Ch 2 = Strudel Ch 3)
-  // ---------------------------------------------------------
+const p_acid = acid(
   note("e4")
     .struct("<[~ x]*4 [x*16] x [[x ~ ~ x] [~ x ~ ~] [x ~ x ~] [~ ~ x ~]]>/4")
     .add(note("<0 -4 -2 -5>/2"))
-    .midichan(3).midi(),
+);
 
-).cpm(115/4)
+stack(
+  p_drums,
+  p_lead,
+  p_bass,
+  p_acid
+)
