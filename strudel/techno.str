@@ -1,0 +1,49 @@
+// Dub Techno Jam mapped to rust_audio/dubTechno.toml
+const setBpm = (bpm) => setcpm(bpm / 4);
+setBpm(115); 
+
+// Map directly to your TOML MIDI channels
+const drums = (pat) => pat.midichan(9).midi(); // Drum Machine (chan 9)
+const lead  = (pat) => pat.midichan(0).midi(); // Synth Lead (chan 0)
+const bass  = (pat) => pat.midichan(1).midi(); // Bass Line (chan 1)
+const acid  = (pat) => pat.midichan(2).midi(); // Acid Pluck (chan 2)
+
+const MINOR_SCALE = 'D2:dorian';
+
+// 1. Drum Machine: Heavy four-on-the-floor, rolling hats, and a dubby rimshot
+const kick = drums(n("36*4")).velocity(0.9);
+const hats = drums(n("[~ 42]*2")).velocity("<0.4 0.7>");
+const perc = drums(n("~ 37 ~ [37*2]")).velocity(0.6);
+const p_drums = stack(kick, hats, perc);
+
+// 2. Synth Lead: Echoing, sparse dub chord stabs
+// Playing 3 notes simultaneously to trigger chords into your delay/reverb chain
+const p_lead = lead(
+  n("~ [0, 2, 4] ~ ~ ~ ~ [3, 5, 7] ~")
+    .scale(MINOR_SCALE)
+    .add(12) // Shift up an octave
+).velocity("<0.4 0.8 0.5>").sustain(0.1);
+
+// 3. Bass Line: Deep, syncopated off-beat groove pulling from the sub oscillator
+const p_bass = bass(
+  n("~ 0 ~ -2 ~ 0 3 ~")
+    .scale(MINOR_SCALE)
+).velocity(0.8).sustain(0.2);
+
+// 4. Acid Pluck: Fast, evolving 16th-note sequence with the square wave
+const acidSeq = n("[0 2 4 7] [4 2 0 -2] [0 4 7 9] [7 4 2 0]")
+  .scale(MINOR_SCALE)
+  .sometimes(x => x.add(12)) // Randomly bump individual notes up an octave
+  .velocity(sine.range(0.3, 0.7).fast(0.5)); // LFO sweeping the velocity
+
+const p_acid = acid(acidSeq)
+  .sustain(0.05)
+  .mask("<1 1 0 1>"); // Drop the acid track out every 3rd bar for tension
+
+// Bring it all together
+stack(
+  p_drums,
+  p_lead,
+  p_bass,
+  p_acid
+)
