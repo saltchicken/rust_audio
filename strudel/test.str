@@ -13,13 +13,27 @@ const p_drums = stack(
   drums(note("42*2")).velocity(0.5)
 );
 
+const l1 = n("[0 2 4 6 4 2]!4");
+const l2 = n("[9 7 5 4 2 0]!4");
+const l3 = n("[-2 0 2 4 2 0]!4");
+const l4 = n("[2 4 6 8 6 4]!4");
+
+const l5 = n("[0 4 2 6 4 8]!4");
+const l6 = n("[9 ~ 7 4 ~ 2]!4");
+const l7 = n("[0 2 0 4 0 2]!4");
+const l8 = n("[8 7 6 5 4 2]!4");
+
+const l9  = n("[0 4 6 9 6 4]!4");
+const l10 = n("[9 12 ~ 9 7 ~]!4");
+const l11 = n("[7 9 7 4 2 4]!4");
+const l12 = n("[4 2 0 -2 0 ~]!4");
+
+const patA = [l1, l2, l3, l4];
+const patB = [l5, l6, l7, l8];
+const patC = [l9, l10, l11, l12];
+
 const p_lead = lead(
-  n(`<
-    [0 2 4 6 4 2]!4
-    [9 7 5 4 2 0]!4
-    [-2 0 2 4 2 0]!4
-    [2 4 6 8 6 4]!4
-  >`).scale(LEAD_SCALE).fast(2)
+  cat(...patA, ...patB, ...patA, ...patC).scale(LEAD_SCALE).slow(2)
 );
 
 const p_bass = bass(
