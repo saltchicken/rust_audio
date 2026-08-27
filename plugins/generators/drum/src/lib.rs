@@ -14,6 +14,7 @@ struct DrumConfig {
     snare_decay_ms: f32,
     hihat_decay_ms: f32,
     tom_decay_ms: f32,
+    input_mix: f32,
 }
 
 impl Default for DrumConfig {
@@ -24,6 +25,7 @@ impl Default for DrumConfig {
             snare_decay_ms: 200.0,
             hihat_decay_ms: 80.0,
             tom_decay_ms: 350.0,
+            input_mix: 1.0,
         }
     }
 }
@@ -216,6 +218,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
                                 17 => self.config.snare_decay_ms = 50.0 + val * 950.0,
                                 18 => self.config.hihat_decay_ms = 20.0 + val * 280.0,
                                 19 => self.config.tom_decay_ms = 50.0 + val * 950.0,
+                                12 => self.config.input_mix = val,
                                 _ => {}
                             }
                         }
@@ -238,9 +241,10 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
             self.block_buffer[i] = (self.block_buffer[i] * self.config.volume).clamp(-1.0, 1.0);
         }
 
-        plugin_core::process_f32_channels(&mut audio, |_ch_idx, _input, output| {
+        plugin_core::process_f32_channels(&mut audio, |_ch_idx, input, output| {
             for (i, sample) in output.iter_mut().enumerate().take(frames) {
-                *sample = self.block_buffer[i];
+                let in_val = input.get(i).copied().unwrap_or(0.0);
+                *sample = self.block_buffer[i] + (in_val * self.config.input_mix);
             }
         });
 

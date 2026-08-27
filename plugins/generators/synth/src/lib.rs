@@ -12,6 +12,7 @@ struct SynthConfig {
     attack_ms: f32,
     release_ms: f32,
     volume: f32,
+    input_mix: f32,
 }
 
 impl Default for SynthConfig {
@@ -20,6 +21,7 @@ impl Default for SynthConfig {
             attack_ms: 5.0,
             release_ms: 15.0,
             volume: 0.15,
+            input_mix: 1.0,
         }
     }
 }
@@ -207,6 +209,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
                                 20 => self.config.attack_ms = 1.0 + val * 999.0,
                                 21 => self.config.release_ms = 1.0 + val * 1999.0,
                                 7 => self.config.volume = val,
+                                12 => self.config.input_mix = val,
                                 _ => {}
                             }
                         }
@@ -230,9 +233,10 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             self.block_buffer[i] = out.tanh();
         }
 
-        plugin_core::process_f32_channels(&mut audio, |_ch_idx, _input, output| {
+        plugin_core::process_f32_channels(&mut audio, |_ch_idx, input, output| {
             for (i, sample) in output.iter_mut().enumerate().take(frames) {
-                *sample = self.block_buffer[i];
+                let in_val = input.get(i).copied().unwrap_or(0.0);
+                *sample = self.block_buffer[i] + (in_val * self.config.input_mix);
             }
         });
 

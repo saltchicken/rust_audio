@@ -24,6 +24,8 @@ struct BassConfig {
     filter_decay_ms: f32,
     filter_sustain: f32,
     filter_release_ms: f32,
+    
+    input_mix: f32,
 }
 
 impl Default for BassConfig {
@@ -44,6 +46,8 @@ impl Default for BassConfig {
             filter_decay_ms: 100.0,
             filter_sustain: 0.2,
             filter_release_ms: 60.0,
+            
+            input_mix: 1.0,
         }
     }
 }
@@ -297,6 +301,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyBassProcessor {
                                 15 => self.config.amp_decay_ms = 10.0 + val * 990.0,
                                 74 => self.config.filter_cutoff_hz = 20.0 + val * 4980.0,
                                 71 => self.config.filter_env_mod_hz = val * 5000.0,
+                                12 => self.config.input_mix = val,
                                 _ => {}
                             }
                         }
@@ -320,9 +325,10 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyBassProcessor {
             self.block_buffer[i] = out.clamp(-1.0, 1.0);
         }
 
-        plugin_core::process_f32_channels(&mut audio, |_ch_idx, _input, output| {
+        plugin_core::process_f32_channels(&mut audio, |_ch_idx, input, output| {
             for (i, sample) in output.iter_mut().enumerate().take(frames) {
-                *sample = self.block_buffer[i];
+                let in_val = input.get(i).copied().unwrap_or(0.0);
+                *sample = self.block_buffer[i] + (in_val * self.config.input_mix);
             }
         });
 
