@@ -1,0 +1,152 @@
+[[track]]
+name = "Drum Machine"
+midi_channel = 9
+plugin_chain = [
+  "target/release/libdrum_plugin.so"
+]
+
+[track.plugins.drum]
+volume = 0.8
+# Tightened decays for faster tempo
+kick_decay_ms = 180.0
+snare_decay_ms = 120.0
+hihat_decay_ms = 40.0
+tom_decay_ms = 150.0
+
+
+[[track]]
+name = "Synth Lead"
+midi_channel = 0
+plugin_chain = [
+  "target/release/libsynth_plugin.so",
+  "target/release/libbass_plugin.so",
+  "target/release/libcompressor_clap_plugin.so",
+  "target/release/libamp_clap_plugin.so",
+  "target/release/libcab_clap_plugin.so",
+  "target/release/libvibrato_clap_plugin.so",
+  "target/release/libdelay_clap_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.synth]
+attack_ms = 5.0
+release_ms = 10.0 # Shortened to prevent overlapping notes
+volume = 1.0
+
+[track.plugins.bass]
+waveform = 0 # 0 = Sawtooth, 1 = Square
+sub_mix = 0.5 # 50% Main wave, 50% Sub-osc Sine
+amp_attack_ms = 5.0
+amp_decay_ms = 100.0   # Snappier decay
+amp_sustain = 0.5
+amp_release_ms = 15.0  # Much shorter release
+filter_cutoff_hz = 150.0
+filter_env_mod_hz = 1200.0
+filter_attack_ms = 10.0
+filter_decay_ms = 60.0 # Faster filter close
+filter_sustain = 0.2
+filter_release_ms = 20.0
+volume = 1.0
+input_mix = 0.5
+
+
+[track.plugins.compressor]
+threshold_db = -18.0
+ratio = 4.0
+attack_ms = 5.0
+release_ms = 35.0 # Faster release to recover quickly
+makeup_gain_db = 4.5
+
+[track.plugins.amp]
+drive = 2.0
+tone = 0.4
+level = 0.6
+
+[track.plugins.cab]
+low_cut_hz = 80.0
+high_cut_hz = 5500.0
+resonance = 0.107
+
+[track.plugins.vibrato]
+rate_hz = 4.5
+depth_ms = 0.2
+mix = 1.0
+
+[track.plugins.delay]
+left_delay_ms = 400.0
+right_delay_ms = 530.0
+feedback = 0.3 # Reduced to prevent clutter
+mix = 0.3      # Pulled back into the mix
+
+[track.plugins.reverb]
+comb_lengths = [1557.0, 1617.0, 1491.0, 1422.0]
+allpass_lengths = [225.0, 556.0]
+comb_feedback = 0.84
+comb_dampening = 0.2
+allpass_feedback = 0.5
+left_spread = 0
+right_spread = 23
+mix = 0.2      # Drier mix for clarity
+wet_scale = 0.08
+
+
+[[track]]
+name = "Bass Line"
+midi_channel = 1
+plugin_chain = [
+  "target/release/libbass_plugin.so",
+  "target/release/libcompressor_clap_plugin.so",
+  "target/release/libamp_clap_plugin.so",
+  "target/release/libcab_clap_plugin.so"
+]
+
+[track.plugins.bass]
+waveform = 0 # 0 = Sawtooth, 1 = Square
+sub_mix = 0.5 # 50% Main wave, 50% Sub-osc Sine
+amp_attack_ms = 5.0
+amp_decay_ms = 100.0   # Snappier decay
+amp_sustain = 0.5
+amp_release_ms = 15.0  # Much shorter release
+filter_cutoff_hz = 150.0
+filter_env_mod_hz = 1200.0
+filter_attack_ms = 10.0
+filter_decay_ms = 60.0 # Faster filter close
+filter_sustain = 0.2
+filter_release_ms = 20.0
+volume = 0.1
+
+[track.plugins.compressor]
+threshold_db = -24.0
+ratio = 6.0
+attack_ms = 15.0
+release_ms = 40.0 # Recover fast for 16th notes
+makeup_gain_db = 5.5
+
+[track.plugins.amp]
+drive = 4.0
+tone = 0.2
+level = 0.7
+
+[track.plugins.cab]
+low_cut_hz = 35.0
+high_cut_hz = 1200.0
+resonance = 0.4
+
+
+[[track]]
+name = "Fat Moog Bass"
+midi_channel = 2
+plugin_chain = [
+  "target/release/libmoog_plugin.so"
+]
+
+[track.plugins.moog]
+waveform = 0                  # 0 = Sawtooth for that classic buzz
+osc2_detune_cents = 18.0      # Thick detuning
+osc2_mix = 0.5                # Blend in the second oscillator
+filter_cutoff_hz = 120.0      # Start dark
+filter_resonance = 0.7        # Add that squelchy resonance peak
+filter_env_amount = 3000.0    # Huge envelope sweep
+filter_attack_ms = 15.0       # Snappy filter open
+filter_decay_ms = 350.0       # Standard decay curve
+volume = 0.5
