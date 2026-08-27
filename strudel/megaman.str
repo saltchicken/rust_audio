@@ -4,16 +4,16 @@ stack(
   // ==========================================
   stack(
     // Kick (36) - Driving rock syncopation
-    n("<[36 36 ~ 36] [36 ~ 36 36]>*2"),
+    note("<[36 36 ~ 36] [36 ~ 36 36]>*2"),
     
     // Snare (38) - Solid backbeat on 2 and 4
-    n("[~ 38]*2"),
+    note("[~ 38]*2"),
     
     // Hi-hat (42) - Frantic 16th notes
-    n("42*8"),
+    note("42*8"),
     
     // Toms (50, 47, 43) - Descending drum fill every 4th bar
-    n("<~ ~ ~ [~ 50 47 43]>"),
+    note("<~ ~ ~ [~ 50 47 43]>"),
 
     // Modulate the Kick Decay (CC 16) for a breathing low-end feel
     ccv(sine.range(0.25, 0.9).slow(8)).ccn(16)
@@ -22,12 +22,10 @@ stack(
   // ==========================================
   // BASS LINE (Channel 2 / Rust Ch 1)
   // ==========================================
-  // i - VI - III - VII progression in C minor
-  // 36=C2, 32=Ab1, 39=Eb2, 34=Bb1
+  // A classic i - VI - III - VII progression (C minor)
   stack(
     // Base rhythm extracted via .struct(), with algorithmic octave leaps
-    // Using pure MIDI numbers means .add() does native integer math safely!
-    n("<36 32 39 34>")
+    note("<c2 ab1 eb2 bb1>")
       .struct("[x x x ~ x x ~ x]*2")
       .add("<0 [0 12] 0 [0 12 0 12]>"),
       
@@ -37,7 +35,7 @@ stack(
     // Static Sub Mix (CC 14) cranked up to anchor the track
     ccv(0.8).ccn(14),
     
-    // Slight Amp Decay (CC 15) tweak for plucky transient
+    // Slight Amp Decay (CC 15) tweak for punchiness
     ccv(0.4).ccn(15)
   ).midichan(2).midi(),
 
@@ -46,8 +44,8 @@ stack(
   // ==========================================
   // Fast 16-bit style counter-melody backing the lead
   stack(
-    // Explicitly patterned 16th-note arpeggios translated to pure MIDI numbers
-    n("<[60 63 67 63] [56 60 63 60] [63 67 70 67] [58 62 65 62]>")
+    // Explicitly patterned 16th-note arpeggios
+    note("<[c4 eb4 g4 eb4] [ab3 c4 eb4 c4] [eb4 g4 bb4 g4] [bb3 d4 f4 d4]>")
       .fast(2),
       
     // Slower, evolving sine LFO on the Filter Cutoff (CC 74)
@@ -59,9 +57,9 @@ stack(
   // ==========================================
   // Heroic, soaring melody utilizing rhythmic extraction
   stack(
-    // Base melodic contour in raw MIDI integers
-    n("< <72 75 79> <77 74 70> <75 72 67> <74 70 65> >")
-      .add("<0 12>") // Alternating registers for a wider scope (integer math)
+    // Base melodic contour
+    note("< <c5 eb5 g5> <f5 d5 bb4> <eb5 c5 g4> <d5 bb4 f4> >")
+      .add("<0 12>") // Alternating registers for a wider scope
       // Complex rhythmic extraction carved out of the sustained notes
       .struct("<[x ~ ~ x ~ x x ~] [x x ~ x ~ ~ x x]>*2"),
       
