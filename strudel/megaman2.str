@@ -1,0 +1,58 @@
+const setBpm = (bpm) => setcpm(bpm / 4);
+setBpm(165);
+
+const drums = (pat) => pat.midichan(10).midi();
+const lead = (pat) => pat.midichan(1).midi();
+const bass = (pat) => pat.midichan(2).midi();
+const moog = (pat) => pat.midichan(3).midi();
+
+// --- Arrangements (1 = Play, 0 = Mute) ---
+// 8 Sections (8 bars each): [Intro, Verse, Build, Chorus, Breakdown, Build 2, Chorus 2, Outro]
+const mask_intro = "<1!8 0!8 0!8 0!8 0!8 0!8 0!8 0!8>";
+const mask_min   = "<0!8 1!8 0!8 0!8 1!8 0!8 0!8 1!8>";
+const mask_full  = "<0!8 0!8 1!8 1!8 0!8 1!8 1!8 0!8>";
+
+const mask_bass  = "<0!8 1!8 1!8 1!8 1!8 1!8 1!8 0!8>";
+const mask_moog  = "<1!8 1!8 1!8 1!8 0!8 1!8 1!8 1!8>";
+const mask_lead  = "<0!8 0!8 0!8 1!8 1!8 1!8 1!8 0!8>";
+
+// --- Drum Components ---
+const kick = note("<[36 36 ~ 36] [36 ~ 36 36]>*2");
+const snare = note("[~ 38]*2");
+const hats = note("42*8");
+const hats_sparse = note("42*4");
+const toms = note("<~ ~ ~ [~ 50 47 43]>");
+const drum_cc = ccv(sine.range(0.5, 0.6).slow(8).segment(32)).ccn(16);
+
+// --- Patterns ---
+const p_drums_intro = drums(stack(hats, drum_cc)).mask(mask_intro);
+const p_drums_min = drums(stack(kick, hats_sparse, drum_cc)).mask(mask_min);
+const p_drums_full = drums(stack(kick, snare, hats, toms, drum_cc)).mask(mask_full);
+
+const p_bass = bass(stack(
+  "<c2 ab1 eb2 bb1>".struct("[x x x ~ x x ~ x]*2").note(),
+  ccv(saw.range(0.3, 0.9).fast(4)).ccn(74),
+  ccv(0.8).ccn(14),
+  ccv(0.4).ccn(15)
+)).mask(mask_bass);
+
+const p_moog = moog(stack(
+  note("<[c4 eb4 g4 eb4] [ab3 c4 eb4 c4] [eb4 g4 bb4 g4] [bb3 d4 f4 d4]>").fast(2),
+  ccv(sine.range(0.2, 0.8).slow(4)).ccn(74)
+)).mask(mask_moog);
+
+const p_lead = lead(stack(
+  "< <c5 eb5 g5> <f5 d5 bb4> <eb5 c5 g4> <d5 bb4 f4> >".struct("<[x ~ ~ x ~ x x ~] [x x ~ x ~ ~ x x]>*2").note(),
+  ccv(sine.range(0.2, 0.8).fast(8)).ccn(91),
+  ccv(0.7).ccn(90)
+)).mask(mask_lead);
+
+// --- Final Output ---
+stack(
+  p_drums_intro,
+  p_drums_min,
+  p_drums_full,
+  p_bass,
+  p_moog,
+  p_lead
+)
