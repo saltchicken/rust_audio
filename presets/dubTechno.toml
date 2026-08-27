@@ -134,34 +134,35 @@ resonance = 0.4
 
 
 [[track]]
-name = "Acid Pluck"
+name = "Moog Pluck"
 midi_channel = 2
 plugin_chain = [
-  "target/release/libbass_plugin.so",
+  "target/release/libmoog_plugin.so",
   "target/release/libdelay_clap_plugin.so",
   "target/release/libreverb_test_plugin.so"
 ]
 
-[track.plugins.bass]
-waveform = 1 # Square wave for a hollow, edgy tone
-sub_mix = 0.0 # Turn off the sub-oscillator for this higher-register part
+[track.plugins.moog]
+waveform = 1           # 1 = Square wave for that hollow acid tone
+osc2_mix = 0.0         # Turn off oscillator 2 for a pure, single-oscillator acid sound
 amp_attack_ms = 2.0
-amp_decay_ms = 100.0   # Tighter decay
-amp_sustain = 0.0 # Pluck style - no sustain
+amp_decay_ms = 100.0   # Tight decay
+amp_sustain = 0.0      # Pluck style - no sustain
 amp_release_ms = 15.0  # Choke the note quickly
-filter_cutoff_hz = 200.0
-filter_env_mod_hz = 3500.0 
+filter_cutoff_hz = 150.0
+filter_resonance = 0.75 # High resonance for the classic "squelch"
+filter_env_amount = 3500.0
 filter_attack_ms = 2.0
-filter_decay_ms = 70.0 # Quick filter zap
+filter_decay_ms = 70.0 # Quick filter zap (slightly faster than amp decay)
 filter_sustain = 0.0
 filter_release_ms = 15.0
-volume = 0.1
+volume = 0.15
 
 [track.plugins.delay]
-bpm = 115 # Synced to new tempo
+bpm = 115
 left_delay_beats = 0.75
 right_delay_beats = 0.50
-feedback = 0.25 # Kept low for clarity
+feedback = 0.3
 mix = 0.25
 
 [track.plugins.reverb]
@@ -172,5 +173,5 @@ comb_dampening = 0.4
 allpass_feedback = 0.5
 left_spread = 15
 right_spread = 25
-mix = 0.3       # Very subtle reverb
+mix = 0.2
 wet_scale = 0.05

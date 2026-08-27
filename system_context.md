@@ -11,7 +11,7 @@ The Rust engine is hardcoded to listen on specific MIDI channels for specific in
 | :--- | :--- | :--- | :--- |
 | **Synth Lead** | 1 (Rust Ch 0) | `.midichan(1).midi()` | Smooth sine synth with anti-click env. |
 | **Bass Line** | 2 (Rust Ch 1) | `.midichan(2).midi()` | Analog-style saw/square with sub-osc & filter. |
-| **Acid Pluck** | 3 (Rust Ch 2) | `.midichan(3).midi()` | Same synth engine as Bass, tweaked for plucks. |
+| **Moog Pluck** | 3 (Rust Ch 2) | `.midichan(3).midi()` | TODO: Add description here |
 | **Drum Machine** | 10 (Rust Ch 9)| `.midichan(10).midi()` | Synthesized 808-style drum machine. |
 
 ### 2. Drum Kit Mapping (Channel 10)
@@ -34,8 +34,8 @@ The custom Rust plugins expose their DSP parameters via MIDI CC. You can modulat
 **Synth & Bass Generators:**
 *   **CC 14**: Sub Mix (Bass only)
 *   **CC 15**: Amp Decay (Bass only)
-*   **CC 74**: Filter Cutoff Hz (Bass/Acid)
-*   **CC 71**: Filter Envelope Mod (Bass/Acid)
+*   **CC 74**: Filter Cutoff Hz (Bass/Moog)
+*   **CC 71**: Filter Envelope Mod (Bass/Moog)
 *   **CC 20**: Attack MS (Synth only)
 *   **CC 21**: Release MS (Synth only)
 *   **CC 7**: Volume (Synth only)
@@ -57,10 +57,4 @@ The custom Rust plugins expose their DSP parameters via MIDI CC. You can modulat
 ### 4. Strudel Best Practices & Idioms
 When generating code for this specific setup, follow these structural rules:
 
-1.  **Global Stack & Tempo:** Always wrap the entire composition in a single `stack(...)` and end it with a `.cpm(BPM/4)` declaration to set the tempo.
-2.  **Generative Modulation:** Use Strudel's built-in LFOs to drive the CC parameters for evolving textures. 
-    *   *Example:* `ccv(saw.range(20, 115).slow(32)).ccn(74)` for a 32-cycle filter sweep.
-3.  **Algorithmic Variation:** Heavily utilize Strudel's cycle alternation `< >` and step division `[ ]` to create evolving 4, 8, and 16 bar loops without writing out every note.
-    *   *Example:* `note("< <[a4 ~ c5] [e5 ~ g5]>!8 <[c5 ~ e5] [g5 ~ a5]>!8 >")`
-4.  **Rhythmic Extraction:** Use `.struct()` to apply complex rhythms to sustained pitches or chords, allowing the notes and the rhythm to evolve independently.
-5.  **Polyphony:** The synth engine handles polyphony gracefully. You can feed it chords (e.g., `note("[c4,e4,g4]")`) or cascading arpeggios using `.off(1/8, add(12))`.
+TODO: Rewrite these structural rules based on format_example.str

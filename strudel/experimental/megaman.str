@@ -28,10 +28,6 @@ const p_acid = acid(stack(
 
 const p_lead = lead(stack(
   "< <c5 eb5 g5> <f5 d5 bb4> <eb5 c5 g4> <d5 bb4 f4> >".struct("<[x ~ ~ x ~ x x ~] [x x ~ x ~ ~ x x]>*2").note(),
-  ccv(0.1).ccn(20), 
-  ccv(0.5).ccn(21), 
-  ccv(0.6).ccn(86), 
-  ccv(0.5).ccn(85), 
   ccv(sine.range(0.2, 0.8).fast(8)).ccn(91),
   ccv(0.7).ccn(90)
 ));
