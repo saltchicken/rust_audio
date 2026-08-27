@@ -3,31 +3,31 @@ stack(
   note("<[e4 ~ g4 b4] [c5 ~ b4 g4] [a4 ~ c5 e5] [b4 ~ g4 e4]>")
     .midichan(1).midi()
     .s("midi")
-    .ccn(20).ccv(120) // Attack MS
-    .ccn(21).ccv(100) // Release MS
-    .ccn(7).ccv(85),  // Volume
+    .ccn(20).ccv(0.95) // Attack MS
+    .ccn(21).ccv(0.9) // Release MS
+    .ccn(7).ccv(0.75),  // Volume
 
   // Bass Line (Channel 2) - Warm, low sustained root notes
   note("<e2 ~ c2 ~ a1 ~ b1 ~>")
     .midichan(2).midi()
     .s("midi")
-    .ccn(14).ccv(70)  // Sub Mix
-    .ccn(15).ccv(110) // Amp Decay
-    .ccn(74).ccv(35), // Filter Cutoff Hz (dark & warm)
+    .ccn(14).ccv(0.5)  // Sub Mix
+    .ccn(15).ccv(0.9) // Amp Decay
+    .ccn(74).ccv(0.3), // Filter Cutoff Hz (dark & warm)
 
   // Acid Pluck (Channel 3) - Evolving ambient arpeggios with LFO filter sweep
   note("<[e3 g3 b3 d4] [c3 e3 g3 b3] [a3 c4 e4 g4] [b3 d4 f#4 a4]>")
     .midichan(3).midi()
     .s("midi")
-    .ccn(74).ccv(saw.range(25, 90).slow(32)) // 32-cycle filter sweep
-    .ccn(71).ccv(45), // Filter Env Mod
+    .ccn(74).ccv(saw.range(0.1, 0.7).slow(32)) // 32-cycle filter sweep
+    .ccn(71).ccv(0.4), // Filter Env Mod
 
   // Drum Machine (Channel 10) - Laid-back, spacious 808 groove
   note("<[36 ~ ~ 42] [~ 38 ~ 42] [36 ~ 42 42] [~ 38 ~ 42]>")
     .midichan(10).midi()
     .s("midi")
-    .ccn(16).ccv(90)  // Kick Decay
-    .ccn(17).ccv(60)  // Snare Decay
-    .ccn(18).ccv(25)  // Hi-hat Decay
+    .ccn(16).ccv(0.8)  // Kick Decay
+    .ccn(17).ccv(0.5)  // Snare Decay
+    .ccn(18).ccv(0.24)  // Hi-hat Decay
 )
 .cpm(64/4)
