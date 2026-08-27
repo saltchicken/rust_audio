@@ -6,7 +6,7 @@ setBpm(115);
 const drums = (pat) => pat.midichan(9).midi(); // Drum Machine (chan 9)
 const lead  = (pat) => pat.midichan(0).midi(); // Synth Lead (chan 0)
 const bass  = (pat) => pat.midichan(1).midi(); // Bass Line (chan 1)
-const acid  = (pat) => pat.midichan(2).midi(); // Acid Pluck (chan 2)
+const moog  = (pat) => pat.midichan(2).midi(); // Moog Pluck (chan 2)
 
 const MINOR_SCALE = 'D2:dorian';
 
@@ -30,20 +30,20 @@ const p_bass = bass(
     .scale(MINOR_SCALE)
 ).velocity(0.8).sustain(0.2);
 
-// 4. Acid Pluck: Fast, evolving 16th-note sequence with the square wave
-const acidSeq = n("[0 2 4 7] [4 2 0 -2] [0 4 7 9] [7 4 2 0]")
+// 4. Moog Pluck: Fast, evolving 16th-note sequence with the square wave
+const moogSeq = n("[0 2 4 7] [4 2 0 -2] [0 4 7 9] [7 4 2 0]")
   .scale(MINOR_SCALE)
   .sometimes(x => x.add(12)) // Randomly bump individual notes up an octave
   .velocity(sine.range(0.3, 0.7).fast(0.5)); // LFO sweeping the velocity
 
-const p_acid = acid(acidSeq)
+const p_moog = moog(moogSeq)
   .sustain(0.05)
-  .mask("<1 1 0 1>"); // Drop the acid track out every 3rd bar for tension
+  .mask("<1 1 0 1>"); // Drop the moog track out every 3rd bar for tension
 
 // Bring it all together
 stack(
   p_drums,
   p_lead,
   p_bass,
-  p_acid
+  p_moog
 )

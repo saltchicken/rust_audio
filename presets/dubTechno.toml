@@ -143,8 +143,8 @@ plugin_chain = [
 ]
 
 [track.plugins.moog]
-waveform = 1           # 1 = Square wave for that hollow acid tone
-osc2_mix = 0.0         # Turn off oscillator 2 for a pure, single-oscillator acid sound
+waveform = 1           # 1 = Square wave for that hollow moog tone
+osc2_mix = 0.0         # Turn off oscillator 2 for a pure, single-oscillator moog sound
 amp_attack_ms = 2.0
 amp_decay_ms = 100.0   # Tight decay
 amp_sustain = 0.0      # Pluck style - no sustain
