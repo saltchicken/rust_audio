@@ -28,6 +28,9 @@ Use specific MIDI note numbers to trigger the synthesized drums:
 ### 3. MIDI CC Parameter Mapping
 The custom Rust plugins expose their DSP parameters via MIDI CC. You can modulate these in Strudel using `.ccn(CC_NUMBER).ccv(VALUE)`. 
 
+> **CRITICAL RULE FOR USAGE:** 
+> Do not implement or output any MIDI CC commands (using `.ccn()` or `.ccv()`) in the generated Strudel code unless the user explicitly requests them.
+
 > **CRITICAL RULE FOR CC VALUES:** 
 > The `.ccv()` parameter in Strudel strictly requires normalized floating-point values between `0.0` and `1.0`. **Never use standard 0-127 MIDI integers.** 
 > *Example:* Use `.ccv(0.5)` for half value, NOT `.ccv(64)`.
