@@ -26,14 +26,18 @@ Use specific MIDI note numbers to trigger the synthesized drums:
 *Example:* `note("<[36 36*2 36 36] [~ 38 ~ 38]>").midichan(10).midi()`
 
 ### 3. MIDI CC Parameter Mapping
-The custom Rust plugins expose their DSP parameters via MIDI CC. You can modulate these in Strudel using `.ccn(CC_NUMBER).ccv(VALUE)`. Values should generally range from `0` to `127` (or normalized `0.0` to `1.0` if using Strudel's internal LFO ranges like `sine.range()`).
+The custom Rust plugins expose their DSP parameters via MIDI CC. You can modulate these in Strudel using `.ccn(CC_NUMBER).ccv(VALUE)`. 
+
+> **CRITICAL RULE FOR CC VALUES:** 
+> The `.ccv()` parameter in Strudel strictly requires normalized floating-point values between `0.0` and `1.0`. **Never use standard 0-127 MIDI integers.** 
+> *Example:* Use `.ccv(0.5)` for half value, NOT `.ccv(64)`.
 
 > **CRITICAL RULE FOR CONTINUOUS SIGNALS:** 
 > If you are using a continuous oscillator (like `sine`, `saw`, or `tri`) to modulate a CC value, you **must** use `.segment(n)` to sample the continuous wave into discrete MIDI events. Without `.segment()`, Strudel will not output any MIDI CC data for that parameter. Static values (e.g., `ccv(0.4)`) trigger once per cycle automatically and do not need `.segment()`.
 > *Example:* `ccv(sine.range(0.25, 0.9).slow(8).segment(32)).ccn(16)`
 
 **All Generators (Synth, Bass, Drum):**
-*   **CC 12**: Input Mix (Passes through audio from preceding plugins; 0 = silent pass-through, 127 = 100% pass-through)
+*   **CC 12**: Input Mix (Passes through audio from preceding plugins; 0.0 = silent pass-through, 1.0 = 100% pass-through)
 
 **Synth & Bass Generators:**
 *   **CC 14**: Sub Mix (Bass only)
