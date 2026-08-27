@@ -4,7 +4,7 @@ setBpm(165);
 const drums = (pat) => pat.midichan(10).midi();
 const lead = (pat) => pat.midichan(1).midi();
 const bass = (pat) => pat.midichan(2).midi();
-const acid = (pat) => pat.midichan(3).midi();
+const moog = (pat) => pat.midichan(3).midi();
 
 const p_drums = drums(stack(
   note("<[36 36 ~ 36] [36 ~ 36 36]>*2"),
@@ -21,7 +21,7 @@ const p_bass = bass(stack(
   ccv(0.4).ccn(15)
 ));
 
-const p_acid = acid(stack(
+const p_moog = moog(stack(
   note("<[c4 eb4 g4 eb4] [ab3 c4 eb4 c4] [eb4 g4 bb4 g4] [bb3 d4 f4 d4]>").fast(2),
   ccv(sine.range(0.2, 0.8).slow(4)).ccn(74)
 ));
@@ -35,6 +35,6 @@ const p_lead = lead(stack(
 stack(
   p_drums,
   p_bass,
-  p_acid,
+  p_moog,
   p_lead
 )
