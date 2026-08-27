@@ -1,0 +1,121 @@
+// 1. BPM Initialization
+const setBpm = (bpm) => setcpm(bpm / 4);
+setBpm(120);
+
+// 2. Constants & Scales
+const HARMONY_SCALE = 'C2:minor';
+const LEAD_SCALE = 'C3:minor';
+
+// 3. Instrument Helper Functions (MIDI Mapping)
+const leadCh = (pat) => pat.midichan(1).midi();
+const bassCh = (pat) => pat.midichan(2).midi();
+const moogCh = (pat) => pat.midichan(3).midi();
+const drumCh = (pat) => pat.midichan(10).midi();
+
+// --- MACRO-STRUCTURE MASKS ---
+// Explicit 128-step masks wrapping < > alternation syntax in template literals.
+// Plays ONLY during the first 4 bars (4 cycles out of 128).
+const introMask = `<
+  1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0
+  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
+>`;
+
+// Plays during bars 5-128.
+const mainMask = `<
+  0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1
+  1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+  1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+  1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+  1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+  1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+  1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+  1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+>`;
+
+// --- HARMONIC JOURNEY ---
+// 1-16: Tonic | 17-32: Submediant | 33-48: Subdominant | 49-64: Dominant
+// 65-80: Tonic | 81-96: Ascending Tension | 97-112: Climax | 113-128: Resolution & Fade
+const rootJourney = `<
+  0 0 0 0  0 0 0 0  0 0 0 0  0 0 0 0
+  -2 -2 -2 -2  -2 -2 -2 -2  -2 -2 -2 -2  -2 -2 -2 -2
+  -4 -4 -4 -4  -4 -4 -4 -4  -4 -4 -4 -4  -4 -4 -4 -4
+  4 4 4 4  4 4 4 4  4 4 4 4  4 4 4 4
+  0 0 0 0  0 0 0 0  0 0 0 0  0 0 0 0
+  2 2 2 2  3 3 3 3  4 4 4 4  5 5 5 5
+  7 7 7 7  7 7 7 7  7 7 7 7  7 7 7 7
+  0 0 0 0  -2 -2 -2 -2  -4 -4 -4 -4  -5 -5 -7 -7
+>`;
+
+// --- DRUM ENERGY CURVE ---
+// Evolving rhythmic density over 128 bars.
+const drumJourney = `<
+  [36 ~ ~ ~]!8 [36 ~ 42 ~]!7 [36 36 43 47]
+  [36 42 ~ 42]!8 [36 42 38 42]!7 [36*2 42 38*2 42*2]
+  [36 42*2 38 42*2]!15 [36*4 38*4 47*4 50*4]
+  [36 ~ ~ ~]!15 [~ ~ 43 47]
+  [36 42 38 42*2]!15 [38*2 42 38 47]
+  [36 42 38 ~]!8 [~ 42 38 42]!7 [38 38 38 38]
+  [36 42*2 38 42*2]!15 [50*2 47*2 43*2 38*2]
+  [36 ~ ~ ~]!16
+>`;
+
+// --- PATTERN GENERATION ---
+
+// 1. Drum Machine (Ch 10)
+const p_drums = drumCh(stack(
+  note(drumJourney),
+  ccv(0.4).ccn(16), // Kick Decay
+  ccv(0.3).ccn(17), // Snare Decay
+  ccv(0.2).ccn(18)  // Hi-hat Decay
+));
+
+// 2. Bass Line (Ch 2)
+const bassNotes = note("<[0*2 0 ~ 0] [0 0*2 ~ 0]>").add(note(rootJourney)).scale(HARMONY_SCALE);
+const p_bass = bassCh(stack(
+  bassNotes,
+  ccv(sine.range(0.2, 0.6).slow(16).segment(32)).ccn(74), // LFO Filter Cutoff 
+  ccv(0.5).ccn(71), // Filter Env Mod
+  ccv(0.6).ccn(14), // Sub Mix
+  ccv(0.4).ccn(15)  // Amp Decay
+));
+
+// 3. Moog Pluck (Ch 3)
+const moogNotes = note("<[~ 0 0 0] [0*4 0*2 ~ 0*2]>").add(note(rootJourney)).scale(HARMONY_SCALE);
+const p_moog = moogCh(stack(
+  moogNotes,
+  ccv(saw.range(0.1, 0.9).slow(32).segment(64)).ccn(74), // Long Filter Sweep
+  ccv(0.7).ccn(71) // Resonance Squelch
+));
+
+// 4. Synth Lead (Ch 1)
+const introLead = note("c5 ~ g5 ~ eb5 ~ d5 ~")
+  .scale(LEAD_SCALE)
+  .mask(introMask); // Only triggers bars 1-4
+
+const mainLead = note("<[~ c5 d5 eb5] [g5 ~ f5 d5] [c5*2 ~ bb4 ~] [c5 ~ ~ ~]>")
+  .scale(LEAD_SCALE)
+  .mask(mainMask);  // Takes over for bars 5-128
+
+const p_lead = leadCh(stack(
+  introLead,
+  mainLead,
+  ccv(0.1).ccn(20), // Attack MS
+  ccv(0.4).ccn(21), // Release MS
+  ccv(0.8).ccn(7),  // Volume
+  ccv(0.6).ccn(88), // Reverb Mix
+  ccv(0.8).ccn(89)  // Reverb Wet Scale
+));
+
+// --- FINAL OUTPUT STACK ---
+stack(
+  p_drums, 
+  p_bass, 
+  p_moog, 
+  p_lead
+)
