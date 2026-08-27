@@ -1,0 +1,35 @@
+const setBpm = (bpm) => setcpm(bpm / 4);
+setBpm(120);
+
+const LEAD_SCALE = `C3:pentatonic`;
+const BASS_SCALE = `C2:major`;
+
+const drums = (pat) => pat.midichan(10).midi();
+const lead = (pat) => pat.midichan(1).midi();
+const bass = (pat) => pat.midichan(2).midi();
+
+const p_drums = stack(
+  drums(note("36")),
+  drums(note("42*2")).velocity(0.5)
+);
+
+const p_lead = lead(
+  n(`<
+    [0 2 4 6 4 2]!4
+    [9 7 5 4 2 0]!4
+    [-2 0 2 4 2 0]!4
+    [2 4 6 8 6 4]!4
+  >`).scale(LEAD_SCALE).fast(2)
+);
+
+const p_bass = bass(
+  n(`<
+    0 2
+  >`).scale(BASS_SCALE).slow(4)
+);
+
+stack(
+  p_drums,
+  p_lead,
+  p_bass
+)
