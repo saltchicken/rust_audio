@@ -135,6 +135,7 @@ struct Voice {
     amp_env: Adsr,
     filter_env: Adsr,
     filter_state: f32,
+    pitch_gain: f32,
 }
 
 impl Voice {
@@ -148,6 +149,7 @@ impl Voice {
             amp_env: Adsr::new(),
             filter_env: Adsr::new(),
             filter_state: 0.0,
+            pitch_gain: 1.0,
         }
     }
 
@@ -155,6 +157,7 @@ impl Voice {
         self.active_note = Some(note);
         self.freq = 440.0 * 2.0_f32.powf((note as f32 - 69.0) / 12.0);
         self.velocity = velocity;
+        self.pitch_gain = (440.0 / self.freq).sqrt().clamp(0.4, 3.0);
 
         self.amp_env.trigger(
             sample_rate,
@@ -217,7 +220,7 @@ impl Voice {
         let alpha = wc / (wc + 1.0);
         self.filter_state += alpha * (mix - self.filter_state);
 
-        self.filter_state * amp_val * self.velocity
+        self.filter_state * amp_val * self.velocity * self.pitch_gain
     }
 }
 
