@@ -15,15 +15,18 @@ The Rust engine is hardcoded to listen on specific MIDI channels for specific in
 | **Drum Machine** | 10 (Rust Ch 9)| `.midichan(10).midi()` | Synthesized 808-style drum machine. |
 
 ### 2. Drum Kit Mapping (Channel 10)
-Use specific MIDI note numbers to trigger the synthesized drums:
-*   **36**: Kick
-*   **38**: Snare
-*   **42**: Hi-hat
-*   **43**: Low Tom
-*   **47**: Mid Tom
-*   **50**: High Tom
+Use specific MIDI note numbers matching the standard General MIDI drum map to trigger the synthesized drum voices:
 
-*Example:* `note("<[36 36*2 36 36] [~ 38 ~ 38]>").midichan(10).midi()`
+*   **36**: Bass Drum (`bd`)
+*   **38**: Snare (`sn`)
+*   **39**: Hand Clap (`cp`)
+*   **41**: Low Tom (`lt`)
+*   **42**: Closed Hi-Hat (`ch`)
+*   **45**: Mid Tom (`mt`)
+*   **46**: Open Hi-Hat (`oh`) *(triggers choke on active Open Hats when Closed Hat 42 plays)*
+*   **48**: High Tom (`ht`)
+
+*Example:* `note("<[36 36*2 36 36] [~ 38 ~ 38] [42*4] [~ 39 ~ 39]>").midichan(10).midi()`
 
 ### 3. MIDI CC Parameter Mapping
 The custom Rust plugins expose their DSP parameters via MIDI CC. You can modulate these in Strudel using `.ccn(CC_NUMBER).ccv(VALUE)`. 
@@ -54,8 +57,10 @@ The custom Rust plugins expose their DSP parameters via MIDI CC. You can modulat
 **Drum Generator:**
 *   **CC 16**: Kick Decay
 *   **CC 17**: Snare Decay
-*   **CC 18**: Hi-hat Decay
-*   **CC 19**: Tom Decay
+*   **CC 18**: Closed Hi-Hat Decay
+*   **CC 19**: Tom Decay (Shared across LT, MT, HT)
+*   **CC 20**: Open Hi-Hat Decay
+*   **CC 21**: Clap Decay
 
 **Effects Chain (Available on various tracks):**
 *   *Amp:* **CC 70** (Drive), **CC 76** (Tone), **CC 77** (Level)
