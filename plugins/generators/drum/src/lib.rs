@@ -12,7 +12,9 @@ struct DrumConfig {
     volume: f32,
     kick_decay_ms: f32,
     snare_decay_ms: f32,
-    hihat_decay_ms: f32,
+    clap_decay_ms: f32,
+    hihat_closed_decay_ms: f32,
+    hihat_open_decay_ms: f32,
     tom_decay_ms: f32,
     input_mix: f32,
 }
@@ -23,7 +25,9 @@ impl Default for DrumConfig {
             volume: 0.8,
             kick_decay_ms: 400.0,
             snare_decay_ms: 200.0,
-            hihat_decay_ms: 80.0,
+            clap_decay_ms: 250.0,
+            hihat_closed_decay_ms: 80.0,
+            hihat_open_decay_ms: 450.0,
             tom_decay_ms: 350.0,
             input_mix: 1.0,
         }
@@ -96,30 +100,39 @@ impl DrumVoice {
         let mut out = 0.0;
 
         match self.instrument {
-            0 => {
+            0 => { // Kick
                 self.pitch_env *= self.pitch_decay;
                 let freq = 50.0 + 300.0 * self.pitch_env;
                 self.phase = (self.phase + freq / sample_rate).fract();
                 out = (self.phase * 2.0 * PI).sin() * self.env;
             }
-            1 => {
+            1 => { // Snare
                 let noise = self.next_noise();
                 self.phase = (self.phase + 200.0 / sample_rate).fract();
                 let tone = (self.phase * 2.0 * PI).sin() * self.env * 0.3;
                 out = (noise * self.env * 0.7) + tone;
             }
-            2 => {
+            2 => { // Clap (Synthesized with noisy bursts)
+                let noise = self.next_noise();
+                // Simple high-passed noise for clap snap
+                let hp = noise - self.last_noise;
+                self.last_noise = noise;
+                // Add a slight repeating envelope ripple for the "cluster" of hands clapping
+                let ripple = 1.0 + (self.env * 40.0 * PI).sin() * 0.5;
+                out = hp * self.env * ripple;
+            }
+            3 | 4 => { // Closed & Open Hi-Hats
                 let noise = self.next_noise();
                 let hp = noise - self.last_noise;
                 self.last_noise = noise;
                 out = hp * self.env;
             }
-            3 | 4 | 5 => {
+            5 | 6 | 7 => { // Toms (Low, Mid, High)
                 self.pitch_env *= self.pitch_decay;
                 let base_freq = match self.instrument {
-                    3 => 90.0,
-                    4 => 130.0,
-                    _ => 180.0,
+                    5 => 90.0,  // Low Tom
+                    6 => 130.0, // Mid Tom
+                    _ => 180.0, // High Tom
                 };
                 let freq = base_freq + (base_freq * 1.5) * self.pitch_env;
                 self.phase = (self.phase + freq / sample_rate).fract();
@@ -188,17 +201,29 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
                             let key = k as i16;
                             let vel = note_on.velocity() as f32;
 
+                            // Map matching your Tidal Cycles drumMap!
                             let drum_info = match key {
-                                36 => Some((0, self.config.kick_decay_ms)),
-                                38 => Some((1, self.config.snare_decay_ms)),
-                                42 => Some((2, self.config.hihat_decay_ms)),
-                                43 => Some((3, self.config.tom_decay_ms)),
-                                47 => Some((4, self.config.tom_decay_ms)),
-                                50 => Some((5, self.config.tom_decay_ms)),
+                                36 => Some((0, self.config.kick_decay_ms)),         // bd
+                                38 => Some((1, self.config.snare_decay_ms)),        // sn
+                                39 => Some((2, self.config.clap_decay_ms)),         // cp
+                                41 => Some((5, self.config.tom_decay_ms)),          // lt
+                                42 => Some((3, self.config.hihat_closed_decay_ms)), // ch
+                                45 => Some((6, self.config.tom_decay_ms)),          // mt
+                                46 => Some((4, self.config.hihat_open_decay_ms)),   // oh
+                                48 => Some((7, self.config.tom_decay_ms)),          // ht
                                 _ => None,
                             };
 
                             if let Some((inst, decay)) = drum_info {
+                                // For hi-hats, choke open hat if closed hat is triggered
+                                if inst == 3 {
+                                    for voice in &mut self.voices {
+                                        if voice.instrument == 4 && voice.active {
+                                            voice.active = false;
+                                        }
+                                    }
+                                }
+
                                 let voice_idx = self
                                     .voices
                                     .iter()
@@ -222,8 +247,10 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
                             match cc {
                                 16 => self.config.kick_decay_ms = 50.0 + val * 950.0,
                                 17 => self.config.snare_decay_ms = 50.0 + val * 950.0,
-                                18 => self.config.hihat_decay_ms = 20.0 + val * 280.0,
+                                18 => self.config.hihat_closed_decay_ms = 20.0 + val * 280.0,
                                 19 => self.config.tom_decay_ms = 50.0 + val * 950.0,
+                                20 => self.config.hihat_open_decay_ms = 50.0 + val * 950.0,
+                                21 => self.config.clap_decay_ms = 50.0 + val * 450.0,
                                 12 => self.config.input_mix = val,
                                 _ => {}
                             }
