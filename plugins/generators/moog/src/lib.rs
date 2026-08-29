@@ -150,6 +150,7 @@ struct Voice {
     amp_env: Adsr,
     filter_env: Adsr,
     ladder: LadderFilter,
+    pitch_gain: f32,
 }
 
 impl Voice {
@@ -163,6 +164,7 @@ impl Voice {
             amp_env: Adsr::new(),
             filter_env: Adsr::new(),
             ladder: LadderFilter::new(),
+            pitch_gain: 1.0,
         }
     }
 
@@ -170,6 +172,7 @@ impl Voice {
         self.active_note = Some(note);
         self.freq = 440.0 * 2.0_f32.powf((note as f32 - 69.0) / 12.0);
         self.velocity = velocity;
+        self.pitch_gain = (440.0 / self.freq).sqrt().clamp(0.4, 3.0);
 
         self.amp_env.trigger(sample_rate, config.amp_attack_ms, config.amp_decay_ms, config.amp_sustain, config.amp_release_ms);
         self.filter_env.trigger(sample_rate, config.filter_attack_ms, config.filter_decay_ms, config.filter_sustain, config.filter_release_ms);
@@ -214,7 +217,7 @@ impl Voice {
         // Pass through the Moog ladder
         let filtered = self.ladder.process(raw_mix, current_cutoff, config.filter_resonance, sample_rate);
 
-        filtered * amp_val * self.velocity
+        filtered * amp_val * self.velocity * self.pitch_gain
     }
 }
 
