@@ -373,6 +373,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "drone_plugin"
+version = "0.1.0"
+dependencies = [
+ "clack-plugin",
+ "plugin_core",
+ "serde",
+]
+
+[[package]]
 name = "drum_plugin"
 version = "0.1.0"
 dependencies = [
