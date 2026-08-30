@@ -205,3 +205,30 @@ lfo_amount = 0.8     # Deep modulation
 [track.plugins.reverb]
 mix = 0.6
 wet_scale = 0.3
+
+[[track]]
+name = "Sampler"
+midi_channel = 4
+plugin_chain = [
+  "target/release/libsampler_plugin.so",
+  "target/release/libdelay_clap_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.sampler]
+sample_path = "samples/pop.wav"
+root_note = 60 # Original pitch at Middle C (MIDI 60)
+volume = 0.8
+attack_ms = 5.0
+release_ms = 50.0
+
+[track.plugins.delay]
+bpm = 115
+left_delay_beats = 0.5
+right_delay_beats = 0.75
+feedback = 0.4
+mix = 0.4
+
+[track.plugins.reverb]
+mix = 0.4
+wet_scale = 0.2
