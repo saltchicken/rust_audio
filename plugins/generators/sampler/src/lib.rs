@@ -2,6 +2,7 @@ use clack_plugin::events::event_types::{MidiEvent, NoteOffEvent, NoteOnEvent};
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
+use std::f32::consts::PI;
 
 // --- 1. Configuration ---
 
@@ -9,6 +10,8 @@ use serde::Deserialize;
 #[serde(default)]
 struct SamplerConfig {
     sample_path: String,
+    mode: String, // "varispeed" or "granular"
+    grain_size_ms: f32, // Size of grains for granular mode
     root_note: i16,
     attack_ms: f32,
     release_ms: f32,
@@ -20,6 +23,8 @@ impl Default for SamplerConfig {
     fn default() -> Self {
         Self {
             sample_path: "samples/default.wav".to_string(),
+            mode: "varispeed".to_string(),
+            grain_size_ms: 40.0,
             root_note: 60, // Middle C
             attack_ms: 2.0,
             release_ms: 15.0,
@@ -135,35 +140,69 @@ impl MicroEnvelope {
     }
 }
 
+// Safe interpolation helper
+fn get_sample_interpolated(buffer: &[f32], pos: f32) -> f32 {
+    let idx = pos as usize;
+    if idx >= buffer.len() || pos < 0.0 {
+        return 0.0;
+    }
+    let idx_next = (idx + 1).min(buffer.len() - 1);
+    let frac = pos.fract();
+    (buffer[idx] * (1.0 - frac)) + (buffer[idx_next] * frac)
+}
+
 // --- 4. Sampler Voice Architecture ---
 
 struct Voice {
     active_note: Option<i16>,
-    playback_pos: f32,
+    is_granular: bool,
+    
+    // Global playhead (advances at 1.0 speed for granular, scaled speed for varispeed)
+    global_pos: f32, 
     playback_rate: f32,
     velocity: f32,
     env: MicroEnvelope,
+
+    // Granular specifics
+    grain_size_samples: f32,
+    grain_phase: f32,
+    grain_anchor1: f32,
+    grain_anchor2: f32,
 }
 
 impl Voice {
     fn new() -> Self {
         Self {
             active_note: None,
-            playback_pos: 0.0,
+            is_granular: false,
+            global_pos: 0.0,
             playback_rate: 1.0,
             velocity: 0.0,
             env: MicroEnvelope::new(),
+            grain_size_samples: 48000.0 * 0.05,
+            grain_phase: 0.0,
+            grain_anchor1: 0.0,
+            grain_anchor2: 0.0,
         }
     }
 
     fn trigger(&mut self, note: i16, velocity: f32, config: &SamplerConfig, sample_rate: f32) {
         self.active_note = Some(note);
-        self.playback_pos = 0.0;
         self.velocity = velocity;
+        self.is_granular = config.mode.to_lowercase() == "granular";
         
-        // Calculate pitch shift ratio relative to the root note
         self.playback_rate = 2.0_f32.powf((note as f32 - config.root_note as f32) / 12.0);
         
+        self.global_pos = 0.0;
+        
+        if self.is_granular {
+            self.grain_size_samples = (config.grain_size_ms / 1000.0) * sample_rate;
+            self.grain_phase = 0.0;
+            self.grain_anchor1 = 0.0;
+            // Anchor 2 simulates a grain that started exactly half a grain-length ago
+            self.grain_anchor2 = -0.5 * self.grain_size_samples;
+        }
+
         self.env.trigger(sample_rate, config.attack_ms, config.release_ms);
     }
 
@@ -171,27 +210,68 @@ impl Voice {
         self.env.release();
     }
 
-    fn process(&mut self, sample_rate: f32, sample_buffer: &[f32]) -> f32 {
+    fn process(&mut self, _sample_rate: f32, sample_buffer: &[f32]) -> f32 {
         if self.env.state == 0 {
             self.active_note = None;
             return 0.0;
         }
 
-        let idx = self.playback_pos as usize;
-        if idx >= sample_buffer.len() {
-            self.active_note = None;
-            self.env.state = 0;
-            return 0.0;
-        }
+        let sample_out = if self.is_granular {
+            // End note if global playhead exceeds the original sample duration
+            if self.global_pos >= sample_buffer.len() as f32 {
+                self.active_note = None;
+                self.env.state = 0;
+                return 0.0;
+            }
 
-        // Linear interpolation for smooth pitch shifting
-        let idx_next = (idx + 1).min(sample_buffer.len() - 1);
-        let frac = self.playback_pos.fract();
-        let sample = (sample_buffer[idx] * (1.0 - frac)) + (sample_buffer[idx_next] * frac);
+            let phase_inc = 1.0 / self.grain_size_samples.max(1.0);
+            
+            // Advance main grain phase
+            let old_phase1 = self.grain_phase;
+            self.grain_phase += phase_inc;
+            if self.grain_phase >= 1.0 {
+                self.grain_phase -= 1.0;
+                self.grain_anchor1 = self.global_pos;
+            }
 
-        self.playback_pos += self.playback_rate;
+            // Detect phase wrapping for the second grain (offset by 180 degrees)
+            let old_phase2 = (old_phase1 + 0.5) % 1.0;
+            let phase2 = (self.grain_phase + 0.5) % 1.0;
+            if phase2 < old_phase2 {
+                self.grain_anchor2 = self.global_pos;
+            }
 
-        sample * self.velocity * self.env.process()
+            // --- Grain 1 ---
+            let read_pos1 = self.grain_anchor1 + (self.grain_phase * self.grain_size_samples * self.playback_rate);
+            let s1 = get_sample_interpolated(sample_buffer, read_pos1);
+            let w1 = (self.grain_phase * PI).sin();
+            let win1 = w1 * w1; // Hann Window
+
+            // --- Grain 2 ---
+            let read_pos2 = self.grain_anchor2 + (phase2 * self.grain_size_samples * self.playback_rate);
+            let s2 = get_sample_interpolated(sample_buffer, read_pos2);
+            let w2 = (phase2 * PI).sin();
+            let win2 = w2 * w2;
+
+            // Advance the global playhead at 1.0 speed (preserving time length)
+            self.global_pos += 1.0;
+
+            (s1 * win1) + (s2 * win2)
+
+        } else {
+            // Classic Varispeed Mode
+            if self.global_pos >= sample_buffer.len() as f32 {
+                self.active_note = None;
+                self.env.state = 0;
+                return 0.0;
+            }
+
+            let s = get_sample_interpolated(sample_buffer, self.global_pos);
+            self.global_pos += self.playback_rate;
+            s
+        };
+
+        sample_out * self.velocity * self.env.process()
     }
 }
 
@@ -330,5 +410,5 @@ export_clap_plugin!(
     MySamplerPlugin,
     MySamplerProcessor,
     "com.example.rust-mixer-sampler",
-    "Pitch-Shifting Sampler"
+    "Granular / Varispeed Sampler"
 );
