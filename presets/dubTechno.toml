@@ -234,3 +234,20 @@ mix = 0.4
 [track.plugins.reverb]
 mix = 0.4
 wet_scale = 0.2
+
+[[track]]
+name = "Melodic Flute"
+midi_channel = 5
+plugin_chain = [
+  "target/release/libflute_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.flute]
+volume = 0.8
+breath_noise = 0.2
+vibrato_depth = 0.01
+
+[track.plugins.reverb]
+mix = 0.4
+wet_scale = 0.2
