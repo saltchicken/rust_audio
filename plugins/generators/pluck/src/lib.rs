@@ -2,6 +2,7 @@ use clack_plugin::events::event_types::{MidiEvent, NoteOffEvent, NoteOnEvent};
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
 use serde::Deserialize;
+use std::f32::consts::PI;
 
 // --- 1. Configuration ---
 
@@ -9,10 +10,11 @@ use serde::Deserialize;
 #[serde(default)]
 struct PluckConfig {
     volume: f32,
-    decay: f32,   // Overall feedback gain (0.0 to 1.0). 0.99 = long ring.
-    damping: f32, // Low-pass filter weight. Higher = duller string.
+    decay: f32,           // Overall feedback gain (0.0 to 1.0). 0.99 = long ring.
+    damping: f32,         // Low-pass filter weight. Higher = duller string.
     input_mix: f32,
     transpose_octaves: i32, // Shifts the base pitch of the instrument
+    exciter_type: u32,    // 0 = White Noise (String), 1 = Sine Wave (Bell/Mallet)
 }
 
 impl Default for PluckConfig {
@@ -23,6 +25,7 @@ impl Default for PluckConfig {
             damping: 0.5,
             input_mix: 1.0,
             transpose_octaves: 0,
+            exciter_type: 0, 
         }
     }
 }
@@ -40,9 +43,11 @@ struct Voice {
     write_idx: usize,
     delay_samples: f32,
     
-    // Exciter
+    // Exciter State (Holds variables for both noise and sine)
     noise_burst_left: usize,
     rng_state: u32,
+    exciter_phase: f32,
+    exciter_inc: f32,
     
     // Filter State
     last_out: f32,
@@ -64,6 +69,8 @@ impl Voice {
             delay_samples: 0.0,
             noise_burst_left: 0,
             rng_state: 1,
+            exciter_phase: 0.0,
+            exciter_inc: 0.0,
             last_out: 0.0,
             env: 0.0,
             env_decay_multiplier: 1.0,
@@ -82,11 +89,14 @@ impl Voice {
         
         // Calculate delay length. We subtract 0.5 samples to compensate for the 
         // phase delay introduced by our 1-pole low-pass filter in the feedback loop.
-        // Without this, higher notes drift flat!
         self.delay_samples = (sample_rate / self.freq) - 0.5;
         
         // The noise burst (the "pluck") lasts exactly one cycle of the delay line
         self.noise_burst_left = self.delay_samples.ceil() as usize;
+        
+        // Set up the smooth sine wave exciter variables just in case
+        self.exciter_phase = 0.0;
+        self.exciter_inc = self.freq / sample_rate;
         
         self.velocity = velocity;
         self.write_idx = 0;
@@ -117,11 +127,18 @@ impl Voice {
             }
         }
 
-        // 2. Generate the Exciter Noise Burst
+        // 2. Generate the Exciter Burst
         let mut input = 0.0;
         if self.noise_burst_left > 0 {
-            self.rng_state = self.rng_state.wrapping_mul(1664525).wrapping_add(1013904223);
-            input = (self.rng_state as f32 / u32::MAX as f32) * 2.0 - 1.0;
+            if config.exciter_type == 0 {
+                // Plucked String (White Noise Burst)
+                self.rng_state = self.rng_state.wrapping_mul(1664525).wrapping_add(1013904223);
+                input = (self.rng_state as f32 / u32::MAX as f32) * 2.0 - 1.0;
+            } else {
+                // Marimba/Bell (Smooth Sine Burst)
+                input = (self.exciter_phase * 2.0 * PI).sin();
+                self.exciter_phase += self.exciter_inc;
+            }
             self.noise_burst_left -= 1;
         }
 
@@ -240,8 +257,9 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyPluckProcessor {
                             let cc = data[1];
                             let val = data[2] as f32 / 127.0;
                             match cc {
-                                74 => self.config.damping = val, // MIDI CC 74 (Filter Cutoff) controls damping
-                                71 => self.config.decay = 0.5 + (val * 0.499), // MIDI CC 71 (Resonance) controls string ring length
+                                74 => self.config.damping = val, 
+                                71 => self.config.decay = 0.5 + (val * 0.499), 
+                                76 => self.config.exciter_type = if val < 0.5 { 0 } else { 1 }, // Toggle Exciter Type
                                 7 => self.config.volume = val,
                                 12 => self.config.input_mix = val,
                                 _ => {}

@@ -217,7 +217,7 @@ plugin_chain = [
 
 [track.plugins.sampler]
 sample_path = "samples/pop.wav"
-mode = "varispeed"  # Try changing this to "varispeed" to hear the difference!
+mode = "varispeed"  # Try changing this to "varispeed" and "granular" to hear the difference!
 grain_size_ms = 50.0 
 root_note = 60 # Original pitch at Middle C (MIDI 60)
 volume = 0.8
@@ -268,6 +268,7 @@ decay = 0.98
 # 0.7 filters out a lot of the high-end "twang" for a warmer, dubby sound
 damping = 0.7 
 transpose_octaves = -2
+exciter_type = 1 # 0 for Plucked String, 1 for Marimba/Bell
 
 [track.plugins.reverb]
 mix = 0.3

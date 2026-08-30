@@ -1352,6 +1352,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "wavetable_plugin"
+version = "0.1.0"
+dependencies = [
+ "clack-plugin",
+ "plugin_core",
+ "serde",
+]
+
+[[package]]
 name = "web-sys"
 version = "0.3.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
