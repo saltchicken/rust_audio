@@ -892,6 +892,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
+name = "pluck_plugin"
+version = "0.1.0"
+dependencies = [
+ "clack-plugin",
+ "plugin_core",
+ "serde",
+]
+
+[[package]]
 name = "plugin_core"
 version = "0.1.0"
 dependencies = [

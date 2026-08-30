@@ -251,3 +251,26 @@ vibrato_depth = 0.01
 [track.plugins.reverb]
 mix = 0.4
 wet_scale = 0.2
+
+
+[[track]]
+name = "Physical String"
+midi_channel = 6
+plugin_chain = [
+  "target/release/libpluck_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.pluck]
+volume = 0.6
+# 0.98 gives it a nice long ring without feeding back infinitely
+decay = 0.98 
+# 0.7 filters out a lot of the high-end "twang" for a warmer, dubby sound
+damping = 0.7 
+transpose_octaves = -2
+
+[track.plugins.reverb]
+mix = 0.3
+wet_scale = 0.15
+left_spread = 12
+right_spread = 30
