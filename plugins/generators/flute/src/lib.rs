@@ -262,8 +262,13 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyFluteProcessor {
             }
         }
 
+        let headroom_scaler = 1.0 / (MAX_VOICES as f32).sqrt(); 
+
         for i in 0..frames {
-            self.block_buffer[i] = (self.block_buffer[i] * self.config.volume).clamp(-1.0, 1.0);
+            let summed_signal = self.block_buffer[i] * self.config.volume * headroom_scaler;
+            
+            // Use tanh() for soft-clipping instead of clamp() to round off peaks gracefully
+            self.block_buffer[i] = summed_signal.tanh();
         }
 
         plugin_core::process_f32_channels(&mut audio, |_ch_idx, input, output| {
