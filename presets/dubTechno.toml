@@ -275,3 +275,19 @@ mix = 0.3
 wet_scale = 0.15
 left_spread = 12
 right_spread = 30
+
+
+[[track]]
+name = "Evolving Digital Textures"
+midi_channel = 7
+plugin_chain = [
+  "target/release/libwavetable_plugin.so",
+]
+
+[track.plugins.wavetable]
+wavetable_path = "samples/morphing_sync.wav"
+volume = 0.4
+table_pos = 0.0       # Start at Sine wave
+lfo_rate_hz = 0.2     # Sweep happens once every 5 seconds
+lfo_amount = 0.25     # Sweep heavily into the Formants and Square waves
+attack_ms = 800.0     # Swell in gently

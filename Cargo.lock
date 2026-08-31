@@ -1356,6 +1356,7 @@ name = "wavetable_plugin"
 version = "0.1.0"
 dependencies = [
  "clack-plugin",
+ "hound",
  "plugin_core",
  "serde",
 ]
