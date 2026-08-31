@@ -85,7 +85,7 @@ impl AudioEngine {
         let mut output_stream_config: cpal::StreamConfig = supported_config.clone().into();
 
         if let cpal::SupportedBufferSize::Range { min, max } = supported_config.buffer_size() {
-            let desired = (*min).max(512).min(*max);
+            let desired = (*min).max(self.config.buffer_size).min(*max);
             output_stream_config.buffer_size = cpal::BufferSize::Fixed(desired);
             println!("⚡ Requested Output Buffer Size: {} frames\r", desired);
         }

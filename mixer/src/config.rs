@@ -15,6 +15,7 @@ pub struct TrackConfig {
 pub struct EngineConfig {
     pub master_volume: Option<f32>,
     pub sample_rate: u32,
+    pub buffer_size: Option<u32>,
     pub output_device: String,
     pub default_preset: Option<String>,
 }
@@ -28,6 +29,7 @@ pub struct Preset {
 pub struct MixerConfig {
     pub master_volume: Option<f32>,
     pub sample_rate: u32,
+    pub buffer_size: u32,
     pub output_device: String,
     pub track: Vec<TrackConfig>,
 }
@@ -37,6 +39,7 @@ impl Default for EngineConfig {
         Self {
             master_volume: Some(1.0),
             sample_rate: 48000,
+            buffer_size: Some(512),
             output_device: "default".to_string(),
             default_preset: Some("presets/default.toml".to_string()),
         }
@@ -70,6 +73,7 @@ pub fn load_config_and_preset(
         MixerConfig {
             master_volume: engine_config.master_volume,
             sample_rate: engine_config.sample_rate,
+            buffer_size: engine_config.buffer_size.unwrap_or(512),
             output_device: engine_config.output_device,
             track: preset.track,
         },

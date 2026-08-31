@@ -1,4 +1,5 @@
 master_volume = 1.0
 sample_rate = 48000
+buffer_size = 64
 output_device = "default"
 default_preset = "presets/default.toml"
