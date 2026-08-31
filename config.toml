@@ -1,4 +1,4 @@
 master_volume = 1.0
 sample_rate = 48000
 output_device = "default"
-default_preset = "presets/dubTechno.toml"
+default_preset = "presets/default.toml"
