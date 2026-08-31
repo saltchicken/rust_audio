@@ -85,7 +85,7 @@ impl AudioEngine {
         let mut output_stream_config: cpal::StreamConfig = supported_config.clone().into();
 
         if let cpal::SupportedBufferSize::Range { min, max } = supported_config.buffer_size() {
-            let desired = (*min).max(64).min(*max);
+            let desired = (*min).max(512).min(*max);
             output_stream_config.buffer_size = cpal::BufferSize::Fixed(desired);
             println!("⚡ Requested Output Buffer Size: {} frames\r", desired);
         }
@@ -178,6 +178,9 @@ impl AudioEngine {
         let master_volume = self.config.master_volume.unwrap_or(1.0);
         let config_tracks = self.config.track.clone();
 
+        // PRE-ALLOCATE the MIDI message buffer OUTSIDE the audio callback
+        let mut msgs = Vec::with_capacity(256);
+
         let output_stream = output_device.build_output_stream(
             &output_stream_config,
             move |data: &mut [f32], _: &_| {
@@ -190,7 +193,8 @@ impl AudioEngine {
                     in_ev.clear();
                 }
 
-                let mut msgs = Vec::new();
+                // CLEAR and REUSE the vector instead of allocating a new one
+                msgs.clear();
                 while let Some(msg) = midi_rx.pop() {
                     msgs.push(msg);
                 }
@@ -205,7 +209,7 @@ impl AudioEngine {
                         })
                         .unwrap_or(0);
 
-                    for msg in msgs {
+                    for msg in &msgs {
                         match msg {
                             MidiMsg::NoteOn(ch, note, velocity, s) => {
                                 let offset_us = s.saturating_sub(first_stamp);
@@ -215,12 +219,12 @@ impl AudioEngine {
 
                                 for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
                                     if track_cfg.midi_channel.is_none()
-                                        || track_cfg.midi_channel == Some(ch)
+                                        || track_cfg.midi_channel == Some(*ch)
                                     {
                                         let event = NoteOnEvent::new(
                                             time,
-                                            Pckn::new(0u16, ch as u16, note, 0u32),
-                                            velocity as f64,
+                                            Pckn::new(0u16, *ch as u16, *note, 0u32),
+                                            *velocity as f64,
                                         );
                                         tracks_events[track_idx].0.push(&event);
                                     }
@@ -234,11 +238,11 @@ impl AudioEngine {
 
                                 for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
                                     if track_cfg.midi_channel.is_none()
-                                        || track_cfg.midi_channel == Some(ch)
+                                        || track_cfg.midi_channel == Some(*ch)
                                     {
                                         let event = NoteOffEvent::new(
                                             time,
-                                            Pckn::new(0u16, ch as u16, note, 0u32),
+                                            Pckn::new(0u16, *ch as u16, *note, 0u32),
                                             0.0,
                                         );
                                         tracks_events[track_idx].0.push(&event);
@@ -253,10 +257,10 @@ impl AudioEngine {
 
                                 for (track_idx, track_cfg) in config_tracks.iter().enumerate() {
                                     if track_cfg.midi_channel.is_none()
-                                        || track_cfg.midi_channel == Some(ch)
+                                        || track_cfg.midi_channel == Some(*ch)
                                     {
                                         let event =
-                                            MidiEvent::new(time, 0, [0xB0 | ch, controller, value]);
+                                            MidiEvent::new(time, 0, [0xB0 | *ch, *controller, *value]);
                                         tracks_events[track_idx].0.push(&event);
                                     }
                                 }
