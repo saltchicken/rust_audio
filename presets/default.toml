@@ -291,25 +291,3 @@ table_pos = 0.0       # Start at Sine wave
 lfo_rate_hz = 0.2     # Sweep happens once every 5 seconds
 lfo_amount = 0.25     # Sweep heavily into the Formants and Square waves
 attack_ms = 800.0     # Swell in gently
-
-[[track]]
-name = "Vocalese Choir"
-midi_channel = 8
-plugin_chain = [
-  "target/release/libgranular_plugin.so",
-  "target/release/libreverb_test_plugin.so"
-]
-
-[track.plugins.granular]
-sample_path = "samples/shape_of_a_breath/.wav"
-volume = 0.6
-grain_size_ms = 85.0     # Larger grains for smoother vocals
-grain_spacing_ms = 15.0  # Tight overlap for continuous sound
-position = 0.4           # Sweet spot in the sample
-position_jitter = 0.02   # Slight flutter to prevent phasing
-attack_ms = 150.0
-release_ms = 400.0
-
-[track.plugins.reverb]
-mix = 0.5
-wet_scale = 0.3
