@@ -1,0 +1,265 @@
+[[track]]
+name = "Drone Sub-Bass"
+midi_channel = 9
+plugin_chain = [
+  "target/release/libdrone_plugin.so",
+  "target/release/libcompressor_clap_plugin.so"
+]
+
+[track.plugins.drone]
+volume = 0.7
+detune_cents = 3.0
+noise_mix = 0.05
+attack_ms = 2000.0
+decay_ms = 1000.0
+sustain = 1.0
+release_ms = 3000.0
+filter_cutoff_hz = 90.0
+filter_resonance = 0.2
+lfo_rate_hz = 0.02
+lfo_amount = 0.3
+
+[track.plugins.compressor]
+threshold_db = -12.0
+ratio = 4.0
+attack_ms = 10.0
+release_ms = 50.0
+makeup_gain_db = 2.0
+
+
+[[track]]
+name = "Drone Shimmer Pad"
+midi_channel = 0
+plugin_chain = [
+  "target/release/libdrone_plugin.so",
+  "target/release/libvibrato_clap_plugin.so",
+  "target/release/libdelay_clap_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.drone]
+volume = 0.6
+detune_cents = 25.0
+noise_mix = 0.25
+attack_ms = 0.0
+decay_ms = 1000.0
+sustain = 1.0
+release_ms = 6000.0
+filter_cutoff_hz = 2500.0
+filter_resonance = 0.6
+lfo_rate_hz = 0.1
+lfo_amount = 0.5
+
+[track.plugins.vibrato]
+rate_hz = 3.5
+depth_ms = 0.4
+mix = 0.8
+
+[track.plugins.delay]
+left_delay_ms = 500.0
+right_delay_ms = 750.0
+feedback = 0.5
+mix = 0.4
+
+[track.plugins.reverb]
+mix = 0.7
+wet_scale = 0.4
+
+
+[[track]]
+name = "Drone Resonant Swell"
+midi_channel = 1
+plugin_chain = [
+  "target/release/libdrone_plugin.so",
+  "target/release/libamp_clap_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.drone]
+volume = 0.5
+detune_cents = 8.0
+noise_mix = 0.1
+attack_ms = 3000.0
+decay_ms = 1000.0
+sustain = 1.0
+release_ms = 4000.0
+filter_cutoff_hz = 600.0
+filter_resonance = 0.85
+lfo_rate_hz = 0.08
+lfo_amount = 0.7
+
+[track.plugins.amp]
+drive = 3.0
+tone = 0.3
+level = 0.7
+
+[track.plugins.reverb]
+mix = 0.5
+wet_scale = 0.25
+
+
+[[track]]
+name = "Drone Metallic Texture"
+midi_channel = 2
+plugin_chain = [
+  "target/release/libdrone_plugin.so",
+  "target/release/libdelay_clap_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.drone]
+volume = 0.45
+detune_cents = 35.0
+noise_mix = 0.4
+attack_ms = 1500.0
+decay_ms = 1000.0
+sustain = 1.0
+release_ms = 3000.0
+filter_cutoff_hz = 4000.0
+filter_resonance = 0.5
+lfo_rate_hz = 0.2
+lfo_amount = 0.6
+
+[track.plugins.delay]
+bpm = 115
+left_delay_beats = 1.0
+right_delay_beats = 1.5
+feedback = 0.45
+mix = 0.35
+
+[track.plugins.reverb]
+mix = 0.6
+wet_scale = 0.3
+
+
+[[track]]
+name = "Ambient Atmosphere"
+midi_channel = 3
+plugin_chain = [
+  "target/release/libdrone_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.drone]
+volume = 0.5
+detune_cents = 12.0
+noise_mix = 0.15
+attack_ms = 4000.0
+decay_ms = 1000.0
+sustain = 1.0
+release_ms = 5000.0
+filter_cutoff_hz = 150.0
+filter_resonance = 0.4
+lfo_rate_hz = 0.05
+lfo_amount = 0.8
+
+[track.plugins.reverb]
+mix = 0.6
+wet_scale = 0.3
+
+
+[[track]]
+name = "Drone Granular Wash"
+midi_channel = 4
+plugin_chain = [
+  "target/release/libdrone_plugin.so",
+  "target/release/libdelay_clap_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.drone]
+volume = 0.55
+detune_cents = 18.0
+noise_mix = 0.3
+attack_ms = 2500.0
+decay_ms = 1000.0
+sustain = 1.0
+release_ms = 4500.0
+filter_cutoff_hz = 1200.0
+filter_resonance = 0.3
+lfo_rate_hz = 0.04
+lfo_amount = 0.5
+
+[track.plugins.delay]
+bpm = 115
+left_delay_beats = 0.75
+right_delay_beats = 1.0
+feedback = 0.5
+mix = 0.4
+
+[track.plugins.reverb]
+mix = 0.65
+wet_scale = 0.35
+
+
+[[track]]
+name = "Drone Formant Sweep"
+midi_channel = 5
+plugin_chain = [
+  "target/release/libdrone_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.drone]
+volume = 0.6
+detune_cents = 15.0
+noise_mix = 0.2
+attack_ms = 3500.0
+decay_ms = 1000.0
+sustain = 1.0
+release_ms = 5000.0
+filter_cutoff_hz = 850.0
+filter_resonance = 0.7
+lfo_rate_hz = 0.03
+lfo_amount = 0.9
+
+[track.plugins.reverb]
+mix = 0.55
+wet_scale = 0.25
+
+
+[[track]]
+name = "Drone Glassy Layer"
+midi_channel = 6
+plugin_chain = [
+  "target/release/libdrone_plugin.so",
+  "target/release/libreverb_test_plugin.so"
+]
+
+[track.plugins.drone]
+volume = 0.4
+detune_cents = 45.0
+noise_mix = 0.35
+attack_ms = 4500.0
+decay_ms = 1000.0
+sustain = 1.0
+release_ms = 6000.0
+filter_cutoff_hz = 5000.0
+filter_resonance = 0.5
+lfo_rate_hz = 0.15
+lfo_amount = 0.4
+
+[track.plugins.reverb]
+mix = 0.7
+wet_scale = 0.4
+
+
+[[track]]
+name = "Drone Dark Void"
+midi_channel = 7
+plugin_chain = [
+  "target/release/libdrone_plugin.so"
+]
+
+[track.plugins.drone]
+volume = 0.65
+detune_cents = 5.0
+noise_mix = 0.08
+attack_ms = 6000.0
+decay_ms = 1000.0
+sustain = 1.0
+release_ms = 8000.0
+filter_cutoff_hz = 200.0
+filter_resonance = 0.2
+lfo_rate_hz = 0.01
+lfo_amount = 0.2
