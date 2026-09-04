@@ -178,6 +178,7 @@ pub struct MyPluckProcessor {
     sample_rate: f32,
     block_buffer: Vec<f32>,
     config: PluckConfig,
+    expression: f32, // NEW
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyPluckProcessor {
@@ -201,6 +202,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyPluckProcessor {
             sample_rate: sr,
             block_buffer: vec![0.0; max_frames],
             config,
+            expression: 1.0, // NEW
         })
     }
 
@@ -257,6 +259,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyPluckProcessor {
                             let cc = data[1];
                             let val = data[2] as f32 / 127.0;
                             match cc {
+                                11 => self.expression = val, // NEW
                                 74 => self.config.damping = val, 
                                 71 => self.config.decay = 0.5 + (val * 0.499), 
                                 76 => self.config.exciter_type = if val < 0.5 { 0 } else { 1 }, // Toggle Exciter Type
@@ -282,7 +285,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyPluckProcessor {
 
         // Apply volume and soft clip
         for i in 0..frames {
-            let out = self.block_buffer[i] * self.config.volume;
+            let out = self.block_buffer[i] * self.config.volume * self.expression;
             self.block_buffer[i] = out.tanh();
         }
 

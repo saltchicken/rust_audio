@@ -154,6 +154,7 @@ pub struct MyDrumProcessor {
     sample_rate: f32,
     block_buffer: Vec<f32>,
     config: DrumConfig,
+    expression: f32,
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
@@ -176,6 +177,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
             sample_rate: sr,
             block_buffer: vec![0.0; max_frames],
             config: load_plugin_config::<DrumConfig>("drum"),
+            expression: 1.0,
         })
     }
 
@@ -245,6 +247,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
                             let cc = data[1];
                             let val = data[2] as f32 / 127.0;
                             match cc {
+                                11 => self.expression = val,
                                 16 => self.config.kick_decay_ms = 50.0 + val * 950.0,
                                 17 => self.config.snare_decay_ms = 50.0 + val * 950.0,
                                 18 => self.config.hihat_closed_decay_ms = 20.0 + val * 280.0,
@@ -271,7 +274,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
         }
 
         for i in 0..frames {
-            self.block_buffer[i] = (self.block_buffer[i] * self.config.volume).clamp(-1.0, 1.0);
+            self.block_buffer[i] = (self.block_buffer[i] * self.config.volume * self.expression).clamp(-1.0, 1.0);
         }
 
         plugin_core::process_f32_channels(&mut audio, |_ch_idx, input, output| {

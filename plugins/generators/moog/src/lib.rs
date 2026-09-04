@@ -230,6 +230,7 @@ pub struct MyMoogProcessor {
     sample_rate: f32,
     block_buffer: Vec<f32>,
     config: MoogConfig,
+    expression: f32, // NEW
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyMoogProcessor {
@@ -246,7 +247,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyMoogProcessor {
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES { voices.push(Voice::new()); }
 
-        Ok(Self { voices, sample_rate: sr, block_buffer: vec![0.0; max_frames], config })
+        Ok(Self { voices, sample_rate: sr, block_buffer: vec![0.0; max_frames], config, expression: 1.0 })
     }
 
     fn process(
@@ -288,6 +289,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyMoogProcessor {
                             let cc = data[1];
                             let val = data[2] as f32 / 127.0;
                             match cc {
+                                11 => self.expression = val, // NEW
                                 74 => self.config.filter_cutoff_hz = 20.0 + val * 4980.0,
                                 71 => self.config.filter_resonance = val, // Standard mapping for resonance
                                 73 => self.config.amp_attack_ms = 1.0 + val * 999.0, // Envelope attack
@@ -309,7 +311,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyMoogProcessor {
         }
 
         for i in 0..frames {
-            self.block_buffer[i] = (self.block_buffer[i] * self.config.volume).clamp(-1.0, 1.0);
+            self.block_buffer[i] = (self.block_buffer[i] * self.config.volume * self.expression).clamp(-1.0, 1.0);
         }
 
         plugin_core::process_f32_channels(&mut audio, |_ch_idx, input, output| {

@@ -285,6 +285,7 @@ pub struct MySamplerProcessor {
     sample_rate: f32,
     block_buffer: Vec<f32>,
     config: SamplerConfig,
+    expression: f32, // NEW
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MySamplerProcessor {
@@ -311,6 +312,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySamplerProcessor {
             sample_rate: sr,
             block_buffer: vec![0.0; max_frames],
             config,
+            expression: 1.0, // NEW
         })
     }
 
@@ -368,6 +370,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySamplerProcessor {
                             let cc = data[1];
                             let val = data[2] as f32 / 127.0;
                             match cc {
+                                11 => self.expression = val, // NEW
                                 73 => self.config.attack_ms = 1.0 + val * 500.0,
                                 72 => self.config.release_ms = 1.0 + val * 2000.0,
                                 7 => self.config.volume = val,
@@ -391,7 +394,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySamplerProcessor {
         }
 
         for i in 0..frames {
-            let out = self.block_buffer[i] * self.config.volume;
+            let out = self.block_buffer[i] * self.config.volume * self.expression;
             self.block_buffer[i] = out.clamp(-1.0, 1.0);
         }
 

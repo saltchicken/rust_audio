@@ -135,6 +135,7 @@ pub struct MySynthProcessor {
     sample_rate: f32,
     block_buffer: Vec<f32>,
     config: SynthConfig,
+    expression: f32,
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
@@ -158,6 +159,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
             sample_rate: sr,
             block_buffer: vec![0.0; max_frames],
             config,
+            expression: 1.0,
         })
     }
 
@@ -215,6 +217,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
                             let cc = data[1];
                             let val = data[2] as f32 / 127.0;
                             match cc {
+                                11 => self.expression = val,
                                 20 => self.config.attack_ms = 1.0 + val * 999.0,
                                 21 => self.config.release_ms = 1.0 + val * 1999.0,
                                 7 => self.config.volume = val,
@@ -238,7 +241,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
         }
 
         for i in 0..frames {
-            let out = self.block_buffer[i] * self.config.volume;
+            let out = self.block_buffer[i] * self.config.volume * self.expression;
             self.block_buffer[i] = out.tanh();
         }
 

@@ -1,4 +1,3 @@
-// plugins/generators/flute/src/lib.rs
 use clack_plugin::events::event_types::{MidiEvent, NoteOffEvent, NoteOnEvent};
 use clack_plugin::prelude::*;
 use plugin_core::{export_clap_plugin, load_plugin_config};
@@ -186,6 +185,7 @@ pub struct MyFluteProcessor {
     sample_rate: f32,
     block_buffer: Vec<f32>,
     config: FluteConfig,
+    expression: f32, // NEW
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyFluteProcessor {
@@ -203,6 +203,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyFluteProcessor {
             sample_rate: audio_config.sample_rate as f32,
             block_buffer: vec![0.0; audio_config.max_frames_count as usize],
             config: load_plugin_config::<FluteConfig>("flute"),
+            expression: 1.0, // NEW
         })
     }
 
@@ -243,6 +244,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyFluteProcessor {
                             let cc = data[1];
                             let val = data[2] as f32 / 127.0;
                             match cc {
+                                11 => self.expression = val, // NEW
                                 1 => self.config.vibrato_depth = val * 0.02, // Mod Wheel -> Vibrato
                                 2 => self.config.breath_noise = val * 0.5,   // Breath Controller -> Noise
                                 7 => self.config.volume = val,
@@ -265,7 +267,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyFluteProcessor {
         let headroom_scaler = 1.0 / (MAX_VOICES as f32).sqrt(); 
 
         for i in 0..frames {
-            let summed_signal = self.block_buffer[i] * self.config.volume * headroom_scaler;
+            let summed_signal = self.block_buffer[i] * self.config.volume * self.expression * headroom_scaler;
             
             // Use tanh() for soft-clipping instead of clamp() to round off peaks gracefully
             self.block_buffer[i] = summed_signal.tanh();

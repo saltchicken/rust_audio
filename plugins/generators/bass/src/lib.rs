@@ -233,6 +233,7 @@ pub struct MyBassProcessor {
     sample_rate: f32,
     block_buffer: Vec<f32>,
     config: BassConfig,
+    expression: f32,
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyBassProcessor {
@@ -256,6 +257,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyBassProcessor {
             sample_rate: sr,
             block_buffer: vec![0.0; max_frames],
             config,
+            expression: 1.0,
         })
     }
 
@@ -315,6 +317,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyBassProcessor {
                             let cc = data[1];
                             let val = data[2] as f32 / 127.0;
                             match cc {
+                                11 => self.expression = val,
                                 14 => self.config.sub_mix = val,
                                 15 => self.config.amp_decay_ms = 10.0 + val * 990.0,
                                 74 => self.config.filter_cutoff_hz = 20.0 + val * 4980.0,
@@ -339,7 +342,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyBassProcessor {
         }
 
         for i in 0..frames {
-            let out = self.block_buffer[i] * self.config.volume;
+            let out = self.block_buffer[i] * self.config.volume * self.expression;
             self.block_buffer[i] = out.clamp(-1.0, 1.0);
         }
 

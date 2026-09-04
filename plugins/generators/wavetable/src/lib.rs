@@ -259,6 +259,7 @@ pub struct MyWavetableProcessor {
     block_buffer: Vec<f32>,
     config: WavetableConfig,
     wavetable: Wavetable, 
+    expression: f32, // NEW
 }
 
 impl<'a> PluginAudioProcessor<'a, (), ()> for MyWavetableProcessor {
@@ -286,6 +287,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyWavetableProcessor {
             block_buffer: vec![0.0; audio_config.max_frames_count as usize],
             config,
             wavetable, 
+            expression: 1.0, // NEW
         })
     }
 
@@ -324,6 +326,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyWavetableProcessor {
                             let cc = data[1];
                             let val = data[2] as f32 / 127.0;
                             match cc {
+                                11 => self.expression = val, // NEW
                                 71 => self.config.table_pos = val,
                                 74 => self.config.filter_cutoff_hz = 100.0 + val * 10000.0,
                                 76 => self.config.lfo_rate_hz = 0.01 + val * 4.0,
@@ -345,7 +348,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyWavetableProcessor {
         }
 
         for i in 0..frames {
-            self.block_buffer[i] = (self.block_buffer[i] * self.config.volume).clamp(-1.0, 1.0);
+            self.block_buffer[i] = (self.block_buffer[i] * self.config.volume * self.expression).clamp(-1.0, 1.0);
         }
 
         plugin_core::process_f32_channels(&mut audio, |_ch_idx, input, output| {
