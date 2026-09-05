@@ -191,6 +191,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyPluckProcessor {
         let sr = audio_config.sample_rate as f32;
         let max_frames = audio_config.max_frames_count as usize;
         let config = load_plugin_config::<PluckConfig>("pluck");
+        
+        println!("    🎹 Pluck Loaded | CCs: 7 (Volume), 11 (Expression), 12 (Input Mix), 71 (Decay), 74 (Damping), 76 (Exciter Type)\r");
 
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES {

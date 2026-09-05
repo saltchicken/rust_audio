@@ -81,6 +81,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCompressorPluginAudioProcessor {
         _shared: &'a (),
         audio_config: PluginAudioConfiguration,
     ) -> Result<Self, PluginError> {
+        println!("    🎛️ Compressor Loaded | CCs: 81 (Threshold), 82 (Ratio), 83 (Makeup Gain)\r");
         Ok(Self {
             channels: vec![CompressorChannel::new(), CompressorChannel::new()],
             sample_rate: audio_config.sample_rate as f32,

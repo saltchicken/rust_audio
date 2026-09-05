@@ -59,6 +59,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyAmpPluginAudioProcessor {
         _shared: &'a (),
         _audio_config: PluginAudioConfiguration,
     ) -> Result<Self, PluginError> {
+        println!("    🎛️ Amp Loaded | CCs: 70 (Drive), 76 (Tone), 77 (Level)\r");
         Ok(Self {
             channels: vec![Amplifier::new(), Amplifier::new()],
             config: load_plugin_config::<AmpConfig>("amp"),

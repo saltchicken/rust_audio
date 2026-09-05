@@ -167,6 +167,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDrumProcessor {
         let sr = audio_config.sample_rate as f32;
         let max_frames = audio_config.max_frames_count as usize;
 
+        println!("    🎹 Drum Loaded | CCs: 11 (Expression), 12 (Input Mix), 16 (Kick Dec), 17 (Snare Dec), 18 (CH Dec), 19 (Tom Dec), 20 (OH Dec), 21 (Clap Dec)\r");
+
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES {
             voices.push(DrumVoice::new());

@@ -299,6 +299,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySamplerProcessor {
         let max_frames = audio_config.max_frames_count as usize;
         let config = load_plugin_config::<SamplerConfig>("sampler");
 
+        println!("    🎹 Sampler Loaded | CCs: 7 (Volume), 11 (Expression), 12 (Input Mix), 72 (Release), 73 (Attack)\r");
+
         let sample_buffer = load_wav_mono(&config.sample_path);
 
         let mut voices = Vec::with_capacity(MAX_VOICES);

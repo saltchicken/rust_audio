@@ -197,6 +197,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyFluteProcessor {
     ) -> Result<Self, PluginError> {
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES { voices.push(Voice::new()); }
+        
+        println!("    🎹 Flute Loaded | CCs: 1 (Vibrato Depth), 2 (Breath Noise), 7 (Volume), 11 (Expression)\r");
 
         Ok(Self {
             voices,

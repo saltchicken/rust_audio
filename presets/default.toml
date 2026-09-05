@@ -19,7 +19,6 @@ name = "Synth Lead"
 midi_channel = 0
 plugin_chain = [
   "target/release/libsynth_plugin.so",
-  "target/release/libbass_plugin.so",
   "target/release/libcompressor_clap_plugin.so",
   "target/release/libamp_clap_plugin.so",
   "target/release/libcab_clap_plugin.so",
@@ -32,23 +31,6 @@ plugin_chain = [
 attack_ms = 5.0
 release_ms = 10.0 # Shortened to prevent overlapping notes
 volume = 1.0
-
-[track.plugins.bass]
-waveform = 0 # 0 = Sawtooth, 1 = Square
-sub_mix = 0.5 # 50% Main wave, 50% Sub-osc Sine
-amp_attack_ms = 5.0
-amp_decay_ms = 100.0   # Snappier decay
-amp_sustain = 0.5
-amp_release_ms = 15.0  # Much shorter release
-filter_cutoff_hz = 150.0
-filter_env_mod_hz = 1200.0
-filter_attack_ms = 10.0
-filter_decay_ms = 60.0 # Faster filter close
-filter_sustain = 0.2
-filter_release_ms = 20.0
-volume = 1.0
-input_mix = 0.5
-
 
 [track.plugins.compressor]
 threshold_db = -18.0

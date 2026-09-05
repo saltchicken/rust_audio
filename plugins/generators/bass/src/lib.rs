@@ -247,6 +247,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyBassProcessor {
         let max_frames = audio_config.max_frames_count as usize;
         let config = load_plugin_config::<BassConfig>("bass");
 
+        println!("    🎹 Bass Loaded | CCs: 11 (Expression), 12 (Input Mix), 14 (Sub Mix), 15 (Amp Decay), 71 (Filter Env Mod), 74 (Filter Cutoff)\r");
+
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES {
             voices.push(Voice::new());

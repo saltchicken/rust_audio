@@ -243,6 +243,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyMoogProcessor {
         let sr = audio_config.sample_rate as f32;
         let max_frames = audio_config.max_frames_count as usize;
         let config = load_plugin_config::<MoogConfig>("moog");
+        
+        println!("    🎹 Moog Loaded | CCs: 11 (Expression), 71 (Resonance), 72 (Release), 73 (Attack), 74 (Cutoff)\r");
 
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES { voices.push(Voice::new()); }

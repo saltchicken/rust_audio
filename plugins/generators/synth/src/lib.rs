@@ -149,6 +149,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MySynthProcessor {
         let max_frames = audio_config.max_frames_count as usize;
         let config = load_plugin_config::<SynthConfig>("synth");
 
+        println!("    🎹 Synth Loaded | CCs: 7 (Volume), 11 (Expression), 12 (Input Mix), 20 (Attack), 21 (Release)\r");
+
         let mut voices = Vec::with_capacity(MAX_VOICES);
         for _ in 0..MAX_VOICES {
             voices.push(Voice::new());

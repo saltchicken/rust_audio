@@ -91,6 +91,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyVibratoPluginAudioProcessor {
         let sr = audio_config.sample_rate;
         let channels = vec![ModulatedDelay::new(sr), ModulatedDelay::new(sr)];
 
+        println!("    🎛️ Vibrato Loaded | CCs: 90 (Rate), 91 (Depth), 92 (Mix)\r");
+
         Ok(Self {
             channels,
             sample_rate: sr as f32,

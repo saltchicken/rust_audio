@@ -271,6 +271,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyWavetableProcessor {
     ) -> Result<Self, PluginError> {
         let config = load_plugin_config::<WavetableConfig>("wavetable");
         
+        println!("    🎹 Wavetable Loaded | CCs: 11 (Expression), 71 (Table Pos), 74 (Cutoff), 76 (LFO Rate), 77 (LFO Amount)\r");
+
         let wavetable = if !config.wavetable_path.is_empty() {
             Wavetable::from_file(&config.wavetable_path, config.frame_size)
                 .unwrap_or_else(|| Wavetable::new_math(config.frame_size))

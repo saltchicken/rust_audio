@@ -172,6 +172,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyReverbPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         let config = load_plugin_config::<ReverbConfig>("reverb");
+        
+        println!("    🎛️ Reverb Loaded | CCs: 88 (Mix), 89 (Wet Scale)\r");
 
         let channels = vec![
             ReverbChannel::new(sr, config.left_spread, &config),

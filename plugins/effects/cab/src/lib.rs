@@ -127,6 +127,7 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyCabPluginAudioProcessor {
         _shared: &'a (),
         audio_config: PluginAudioConfiguration,
     ) -> Result<Self, PluginError> {
+        println!("    🎛️ Cab Loaded | CCs: 78 (Low Cut), 79 (High Cut), 80 (Resonance)\r");
         Ok(Self {
             channels: vec![CabChannel::new(), CabChannel::new()],
             sample_rate: audio_config.sample_rate,

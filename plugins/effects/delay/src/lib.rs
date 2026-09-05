@@ -72,6 +72,8 @@ impl<'a> PluginAudioProcessor<'a, (), ()> for MyDelayPluginAudioProcessor {
     ) -> Result<Self, PluginError> {
         let sr = audio_config.sample_rate;
         let config = load_plugin_config::<DelayConfig>("delay");
+        
+        println!("    🎛️ Delay Loaded | CCs: 85 (Feedback), 86 (Mix)\r");
 
         let calc_ms = |beats: Option<f64>, ms: Option<f64>, bpm: Option<f64>| -> f64 {
             if let (Some(b), Some(tempo)) = (beats, bpm) {
